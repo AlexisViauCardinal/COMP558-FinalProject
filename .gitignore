@@ -1,2 +1,6 @@
 .venv
 **/.DS_Store
+sequences/
+*.mp4
+*.avi
+annotations/
