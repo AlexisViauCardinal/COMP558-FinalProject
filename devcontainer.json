@@ -13,7 +13,7 @@
 
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "pip3 install --user -r requirements.txt",
-	"postCreateCommand": "sudo apt-get update; sudo apt-get install ffmpeg libsm6 libxext6 libavcodec-dev  libavformat-dev  libavutil-dev  libswscale-dev -y; pip3 install --upgrade pip; pip3 install --user numpy pandas sympy opencv-python matplotlib jupyterlab notebook ipywidgets scipy scikit-fuzzy",
+	"postCreateCommand": "sudo apt-get update; sudo apt-get install ffmpeg libsm6 libxext6 libavcodec-dev  libavformat-dev  libavutil-dev  libswscale-dev -y; pip3 install --upgrade pip; pip3 install --user numpy pandas sympy opencv-python matplotlib jupyterlab notebook ipywidgets scipy scikit-fuzzy scikit-image",
 
 	// Configure tool-specific properties.
 	// "customizations": {},
@@ -29,6 +29,7 @@
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
 	"mounts": [
-  		"source=/Users/alexis.viau-cardinal/docker-share/opencv,target=/workspaces/python-opencv/resources,type=bind,consistency=cached"
+  		"source=/Users/alexis.viau-cardinal/docker-share/opencv,target=/workspaces/python-opencv/resources,type=bind,consistency=cached",
+		"source=/Users/alexis.viau-cardinal/references/repos/COMP558-FinalProject,target=/workspaces/python-opencv/repo,type=bind,consistency=cached"
 	]
 }

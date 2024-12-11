@@ -1,6 +1,8 @@
-from ImageSegmenter import ImageSegmenter
+from segmentation.image_segmenter import ImageSegmenter
 import numpy as np
 from scipy.signal import convolve2d
+
+__min_clip = 1e-5
 
 def get_d(arr):
     # Check if the array has 3 dimensions or 2 dimensions
@@ -13,10 +15,12 @@ def get_d(arr):
     else:
         raise ValueError("Array must have 2 or 3 dimensions")
 
-class FuzzyCMeansSegmenter():
+class FuzzyCMeansSegmenter(ImageSegmenter):
 
     def __init__(self, n_groups: int, target_error: float, neighbourhood_size: int, m: float, lambda_val: float,
                  max_iter: int):
+        # TODO finish arg parsing + default values
+        
         self.n_groups = n_groups
         self.target_error = target_error
         self.neighbourhood_size = neighbourhood_size
@@ -32,7 +36,6 @@ class FuzzyCMeansSegmenter():
 
         # TODO use previous_guess
 
-        # centroids = np.ones((self.n_groups, get_d(image))) * 155
         kernel = np.ones((self.neighbourhood_size,) * 2)
 
         # Update centroids first
@@ -82,11 +85,14 @@ class FuzzyCMeansSegmenter():
         return np.argmax(u_prime_prime, axis = 0)
 
     def __update_u(self, image: np.ndarray, centroids: np.ndarray) -> np.ndarray:
+        '''
+            Computes the membership value according to paper specification
+        '''
         dists = self.__compute_pixel_dist(image, centroids)
         summed = np.sum(dists, axis=0)[np.newaxis, :, :]
 
-        # clip to avoid runtime issues
-        dists = np.clip(dists, a_min = 0.001, a_max = np.inf)
+        # clip to avoid runtime issues (nan/inf)
+        dists = np.clip(dists, a_min = __min_clip, a_max = np.inf)
 
         denom = np.pow(dists / summed, 2.0 / (self.m - 1))
 
@@ -95,6 +101,9 @@ class FuzzyCMeansSegmenter():
         return u_ones / denom
 
     def __compute_centroids(self, image: np.ndarray, u: np.ndarray) -> np.ndarray:
+        '''
+            Computes the new centroid position according to paper specification
+        '''
         numerator = np.sum(np.pow(u, self.m)[:, :, :, np.newaxis] * image[np.newaxis, :, :], axis=(1, 2))
         denominator = np.sum(np.pow(u, self.m), axis=(1, 2))
 
