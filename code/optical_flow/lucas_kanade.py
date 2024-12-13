@@ -1,7 +1,6 @@
-from optical_flow.optical_flow import OpticalFlow
 import cv2 as cv
 
-class LucasKanade(OpticalFlow):
+class LucasKanade:
 
     def __init__(self, lk_params = {}):
         self.lk_params = lk_params

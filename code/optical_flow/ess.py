@@ -3,32 +3,59 @@ from queue import PriorityQueue
 from optical_flow.bounding_box import BoundingBox
 from dataclasses import dataclass
 from typing import Callable
+from itertools import count
 
 @dataclass
 class Interval:
     low : int   # x >= low
     high : int  # x < high
 
+    def __post_init__(self):
+        if self.low > self.high:
+            print("Warning Interval")
+            low, high = high, low
+
 @dataclass
 class FuzzyBoundingBox:
+    # Assume t >= b, r >= l
     t : Interval
     b : Interval
     l : Interval
     r : Interval
 
-def interval_span(i : Interval) -> int:
-    return np.abs(i.high - i.low)
+    # def __post_init__(self):
+    #     if self.t.low < self.b.low:
+    #         print("Warning Fuzzy")
+    #         self.t, self.b = self.b, self.t
+
+    #     if self.r.low < self.l.low:
+    #         print("Warning Fuzzy")
+    #         self.l, self.r = self.r, self.l
+
+def interval_span(interval : Interval) -> int:
+    return np.abs(interval.high - interval.low)
 
 def split_interval(interval : Interval) -> tuple[Interval, Interval]:
     
+    if interval_span(interval) <= 1:
+        return interval, None
+
     mid = (interval.low + interval.high) / 2
     mid = int(mid)
-
-    if mid == interval.low or mid + 1 >= interval.high:
-        # returns null if only one interval is feasible
-        return (Interval(mid, mid + 1), None)
     
-    return Interval(interval.low, mid), Interval(mid + 1, interval.high)
+    return Interval(interval.low, mid), Interval(mid, interval.high)
+
+def interval_overlap(i1 : Interval, i2 : Interval) -> bool:
+    v1 = sorted([i1.low, i1.high])
+    v2 = sorted([i2.low, i2.high])
+    return (v1[1] >= v2[0] and v1[0] <= v2[1]) or (v2[1] >= v1[0] and v2[0] <= v1[1])
+
+def guard_fuzzy(fuzzy : FuzzyBoundingBox) -> FuzzyBoundingBox:
+    if fuzzy.b.low > fuzzy.t.high:
+        return None
+    if fuzzy.l.low > fuzzy.r.high:
+        return None
+    return fuzzy 
 
 def split_fuzzy(fuzzy : FuzzyBoundingBox) -> tuple[FuzzyBoundingBox, FuzzyBoundingBox]:
     
@@ -45,21 +72,21 @@ def split_fuzzy(fuzzy : FuzzyBoundingBox) -> tuple[FuzzyBoundingBox, FuzzyBoundi
     match int(max_id):
         case 0:
             a, b = split_interval(fuzzy.t)
-            return FuzzyBoundingBox(a, fuzzy.b, fuzzy.l, fuzzy.r), FuzzyBoundingBox(b, fuzzy.b, fuzzy.l, fuzzy.r)
+            return guard_fuzzy(FuzzyBoundingBox(a, fuzzy.b, fuzzy.l, fuzzy.r)), guard_fuzzy(FuzzyBoundingBox(b, fuzzy.b, fuzzy.l, fuzzy.r))
         case 1:
             a, b = split_interval(fuzzy.b)
-            return FuzzyBoundingBox(fuzzy.t, a, fuzzy.l, fuzzy.r), FuzzyBoundingBox(fuzzy.t, b, fuzzy.l, fuzzy.r)
+            return guard_fuzzy(FuzzyBoundingBox(fuzzy.t, a, fuzzy.l, fuzzy.r)), guard_fuzzy(FuzzyBoundingBox(fuzzy.t, b, fuzzy.l, fuzzy.r))
         case 2:
             a, b = split_interval(fuzzy.l)
-            return FuzzyBoundingBox(fuzzy.t, fuzzy.b, a, fuzzy.r), FuzzyBoundingBox(fuzzy.t, fuzzy.b, b, fuzzy.r)
+            return guard_fuzzy(FuzzyBoundingBox(fuzzy.t, fuzzy.b, a, fuzzy.r)), guard_fuzzy(FuzzyBoundingBox(fuzzy.t, fuzzy.b, b, fuzzy.r))
         case 3:
             a, b = split_interval(fuzzy.r)
-            return FuzzyBoundingBox(fuzzy.t, fuzzy.b, fuzzy.l, a), FuzzyBoundingBox(fuzzy.t, fuzzy.b, fuzzy.l, b)
+            return guard_fuzzy(FuzzyBoundingBox(fuzzy.t, fuzzy.b, fuzzy.l, a)), guard_fuzzy(FuzzyBoundingBox(fuzzy.t, fuzzy.b, fuzzy.l, b))
         case _:
             raise ValueError("Internal processing error")
 
 def is_interval_single(interval : Interval) -> bool:
-    return interval.low == interval.high or interval.low + 1 == interval.high 
+    return interval_span(interval) <= 1
 
 def is_fuzzy_box_single(box : FuzzyBoundingBox) -> bool:
     return is_interval_single(box.t) and is_interval_single(box.b) and is_interval_single(box.l) and is_interval_single(box.r)
@@ -82,16 +109,31 @@ def fuzzy_to_bounding_box(fuzzy : FuzzyBoundingBox) -> BoundingBox:
         raise ValueError("Bounding box should not be fuzzy when converting")
     
     v_low = fuzzy.b.low
-    v_high = fuzzy.t.low
+    v_high = fuzzy.t.high
 
     h_low = fuzzy.l.low
     h_high = fuzzy.r.high
     
-    return BoundingBox(h_low, v_low, h_high - h_low, v_high - v_low)
+    return get_largest_bounding_box(fuzzy) #BoundingBox(h_low, v_low, h_high - h_low, v_high - v_low)
+
+def get_smallest_bounding_box(fuzzy : FuzzyBoundingBox) -> BoundingBox:
+
+    if interval_overlap(fuzzy.b, fuzzy.t) or interval_overlap(fuzzy.l, fuzzy.r) : 
+        return BoundingBox(0, 0, 0, 0)
+    
+    v = sorted([fuzzy.b.low, fuzzy.b.high, fuzzy.t.low, fuzzy.t.high])
+    h = sorted([fuzzy.l.low, fuzzy.l.high, fuzzy.r.low, fuzzy.r.high])
+    
+    return BoundingBox(h[1], v[1], h[2] - h[1], v[2] - v[1]) 
+
+def get_largest_bounding_box(fuzzy : FuzzyBoundingBox) -> BoundingBox:
+    v = sorted([fuzzy.b.low, fuzzy.b.high, fuzzy.t.low, fuzzy.t.high])
+    h = sorted([fuzzy.l.low, fuzzy.l.high, fuzzy.r.low, fuzzy.r.high])
+
+    return BoundingBox(h[0], v[0], h[3] - h[0], v[3] - v[0]) 
 
 
-
-def search(self, max_box : BoundingBox, evaluation_function : Callable[[BoundingBox], float]):
+def ess_search(max_box : BoundingBox, evaluation_function : Callable[[FuzzyBoundingBox], float]):
     '''
         Perform the Efficient Subwindow Search. 
         Note that the image properties/statistics should be implicit to the evaluation function
@@ -99,20 +141,26 @@ def search(self, max_box : BoundingBox, evaluation_function : Callable[[Bounding
         max_box : maximum range to perform the search (BoundingBox)
         evaluation_function : function approximating the performance of the classifier
 
-        Returns the best bounding box.
+        Returns the best bounding box
     '''
 
+    unique = count()
 
     current_box = bounding_box_to_fuzzy(max_box)
 
     queue = PriorityQueue()
-    queue.put((evaluation_function(current_box), current_box))
+    queue.put((-evaluation_function(current_box), next(unique), current_box))
 
     while not is_fuzzy_box_single(current_box):
         
+        score, _, current_box = queue.get()
+
         a, b = split_fuzzy(current_box)
 
-
-        pass
-
-    pass
+        if a is not None:
+            queue.put((-evaluation_function(a), next(unique), a))
+        if b is not None:
+            queue.put((-evaluation_function(b), next(unique), b))
+       
+    print(score)
+    return fuzzy_to_bounding_box(current_box)
