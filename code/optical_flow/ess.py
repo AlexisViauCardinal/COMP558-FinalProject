@@ -23,15 +23,6 @@ class FuzzyBoundingBox:
     l : Interval
     r : Interval
 
-    # def __post_init__(self):
-    #     if self.t.low < self.b.low:
-    #         print("Warning Fuzzy")
-    #         self.t, self.b = self.b, self.t
-
-    #     if self.r.low < self.l.low:
-    #         print("Warning Fuzzy")
-    #         self.l, self.r = self.r, self.l
-
 def interval_span(interval : Interval) -> int:
     return np.abs(interval.high - interval.low)
 
@@ -133,7 +124,7 @@ def get_largest_bounding_box(fuzzy : FuzzyBoundingBox) -> BoundingBox:
     return BoundingBox(h[0], v[0], h[3] - h[0], v[3] - v[0]) 
 
 
-def ess_search(max_box : BoundingBox, evaluation_function : Callable[[FuzzyBoundingBox], float]):
+def ess_search(max_box : BoundingBox, evaluation_function : Callable[[FuzzyBoundingBox], float]) -> tuple[BoundingBox, float]:
     '''
         Perform the Efficient Subwindow Search. 
         Note that the image properties/statistics should be implicit to the evaluation function
@@ -141,7 +132,7 @@ def ess_search(max_box : BoundingBox, evaluation_function : Callable[[FuzzyBound
         max_box : maximum range to perform the search (BoundingBox)
         evaluation_function : function approximating the performance of the classifier
 
-        Returns the best bounding box
+        Returns the best bounding box and score
     '''
 
     unique = count()
@@ -162,5 +153,4 @@ def ess_search(max_box : BoundingBox, evaluation_function : Callable[[FuzzyBound
         if b is not None:
             queue.put((-evaluation_function(b), next(unique), b))
        
-    print(score)
-    return fuzzy_to_bounding_box(current_box)
+    return fuzzy_to_bounding_box(current_box), score

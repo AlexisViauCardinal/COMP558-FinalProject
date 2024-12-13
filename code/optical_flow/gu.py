@@ -14,13 +14,13 @@ class Gu:
     def __init__(self, first_frame : np.ndarray, bounding_box : BoundingBox, descriptor : FeatureDescriptor):
 
         # general configuration
-        self.number_frames = 10
+        self.number_frames = 60
         self.kd_trees = deque(maxlen = self.number_frames)
-        # self.background_tree = deque(maxlen = 1)
-        self.background_tree = None
+        self.background_tree = deque(maxlen = self.number_frames)
+        # self.background_tree = None
 
         # __compute_f params
-        self._lambda = 1 # 2/3
+        self._lambda = 4/5
 
         # __compute_k params
         self.gamma = 0.1
@@ -37,12 +37,12 @@ class Gu:
         theta = self.__compute_theta(bounding_box, points_loc)
 
         self.kd_trees.append(KDTree(points_desc[theta, :]))
-        # self.background_tree.append(KDTree(points_desc[~theta, :]))
-        self.background_tree = KDTree(points_desc[~theta, :])
+        self.background_tree.append(KDTree(points_desc[~theta, :]))
+        # self.background_tree = KDTree(points_desc[~theta, :])
 
         self.previous_bbox = bounding_box
 
-    def track_frame(self, next_frame : np.ndarray) -> BoundingBox:
+    def track_frame(self, next_frame : np.ndarray, previous_bbox : BoundingBox = None) -> tuple[BoundingBox, float]:
         '''
             Does one iteration of the Gu object tracker.
 
@@ -50,18 +50,20 @@ class Gu:
             
             Returns the new bounding box
         '''
+        if previous_bbox is None:
+            previous_bbox = self.previous_bbox
 
         points_loc, points_desc = self.descriptor.detect_features(next_frame)
         
         foreground = np.full((points_loc.shape[0], ), False)
 
-        # for i in range(np.min((self.number_frames, len(self.kd_trees), len(self.background_tree)))):
-        for tree in self.kd_trees:
-            # iter_res = self.__compute_f(points_desc, self.kd_trees[i], self.background_tree[i])
-            iter_res = self.__compute_f(points_desc, tree, self.background_tree)
+        for i in range(np.min((self.number_frames, len(self.kd_trees), len(self.background_tree)))):
+        # for tree in self.kd_trees:
+            iter_res = self.__compute_f(points_desc, self.kd_trees[i], self.background_tree[i])
+            # iter_res = self.__compute_f(points_desc, tree, self.background_tree)
             foreground = np.logical_or(foreground, iter_res)
 
-        w = self.__compute_argmax_w(points_loc, foreground, self.previous_bbox, next_frame)
+        w, score = self.__compute_argmax_w(points_loc, foreground, previous_bbox, next_frame)
         theta = self.__compute_theta(w, points_loc)
         f_set = points_desc[np.logical_and(foreground, theta), :]
         f_not_set = points_desc[~np.logical_and(foreground, theta), :]
@@ -70,14 +72,14 @@ class Gu:
         self.kd_trees.append(KDTree(f_set))
 
         # update background
-        # self.background_tree.append(KDTree(f_not_set))
+        self.background_tree.append(KDTree(f_not_set))
         # self.background_tree = KDTree(f_not_set)
 
         self.previous_bbox = w
 
-        return w
+        return w, score
 
-    def __compute_argmax_w(self, keypoints_loc : np.ndarray, keypoints_in_foreground : np.ndarray, wk_1, i_k) -> BoundingBox:
+    def __compute_argmax_w(self, keypoints_loc : np.ndarray, keypoints_in_foreground : np.ndarray, wk_1, i_k) -> tuple[BoundingBox, float]:
         '''
             Compute the best window using Efficient Subwindow Search
 
