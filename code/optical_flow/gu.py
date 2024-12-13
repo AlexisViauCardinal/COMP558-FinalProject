@@ -23,7 +23,7 @@ class Gu:
         self._lambda = 1 # 2/3
 
         # __compute_k params
-        self.gamma = 0.01
+        self.gamma = 0.1
         self.position_drift = 1
         self.height = 1
         self.width = 1
