@@ -2,8 +2,6 @@ from segmentation.image_segmenter import ImageSegmenter
 import numpy as np
 from scipy.signal import convolve2d
 
-__min_clip = 1e-5
-
 def get_d(arr):
     # Check if the array has 3 dimensions or 2 dimensions
     if arr.ndim == 2:
@@ -31,8 +29,9 @@ class FuzzyCMeansSegmenter(ImageSegmenter):
         self.p = 1
         self.q = 1
         self.epsilon = 0
+        self.__min_clip = 1e-5
 
-    def segment_image(self, image: np.ndarray, previous_guess: np.ndarray = None) -> np.ndarray:
+    def segment_image(self, image: np.ndarray, previous_guess: np.ndarray = None, return_centroid : bool = False) -> np.ndarray:
 
         # TODO use previous_guess
 
@@ -81,8 +80,13 @@ class FuzzyCMeansSegmenter(ImageSegmenter):
 
             if self.__compute_error(image, centroids, u_prime_prime) < self.target_error:
                 break
-
-        return np.argmax(u_prime_prime, axis = 0)
+        
+        ret_val = np.argmax(u_prime_prime, axis = 0)
+        
+        if return_centroid:
+            return ret_val, centroids
+        
+        return ret_val
 
     def __update_u(self, image: np.ndarray, centroids: np.ndarray) -> np.ndarray:
         '''
@@ -92,7 +96,7 @@ class FuzzyCMeansSegmenter(ImageSegmenter):
         summed = np.sum(dists, axis=0)[np.newaxis, :, :]
 
         # clip to avoid runtime issues (nan/inf)
-        dists = np.clip(dists, a_min = __min_clip, a_max = np.inf)
+        dists = np.clip(dists, a_min = self.__min_clip, a_max = np.inf)
 
         denom = np.pow(dists / summed, 2.0 / (self.m - 1))
 
