@@ -16,6 +16,7 @@ class CamShift(ScaleCorrection):
         subwindow_x = w // 4  # Center horizontally within ROI
         subwindow_y = h // 4  # Center vertically within ROI
         subwindow = roi[subwindow_y:subwindow_y + subwindow_h, subwindow_x:subwindow_x + subwindow_w]
+        subwindow = roi
         h, s, v = self.find_dom_color(subwindow) 
         lower_bound = np.array([max(h - 30, 0), max(s - 50, 0), max(v - 50, 0)], dtype=np.uint8)
         upper_bound = np.array([min(h + 30, 180), min(s + 50, 255), min(v + 50, 255)], dtype=np.uint8)
