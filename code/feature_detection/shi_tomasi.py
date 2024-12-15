@@ -1,6 +1,6 @@
 import numpy as np
 import cv2 as cv
-from FeatureDetector import FeatureDetector
+from feature_detection.feature_detector import FeatureDetector
 
 def array_from_keypoints(kp):
     return np.array([k.pt for k in kp], dtype=np.float32)

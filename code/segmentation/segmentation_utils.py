@@ -2,6 +2,7 @@ import numpy as np
 import cv2 as cv
 from skimage.measure import label, regionprops
 
+
 __default_kernel = 7
 __default_iteration = 1
 __default_median_blur = 21
@@ -37,7 +38,7 @@ def cleanup(image : np.ndarray) -> np.ndarray:
 
     return image
 
-def image_bbox(image : np.ndarray, connectivity : int = 2, min_area : int = 0) -> np.ndarray:
+def image_bbox(image : np.ndarray, connectivity : int = 2, min_area : int = 0) -> list:
     '''
         Find bounding box for blobs in segmentation
 

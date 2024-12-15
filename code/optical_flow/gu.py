@@ -17,7 +17,6 @@ class Gu:
         self.number_frames = 60
         self.kd_trees = deque(maxlen = self.number_frames)
         self.background_tree = deque(maxlen = self.number_frames)
-        # self.background_tree = None
 
         # __compute_f params
         self._lambda = 4/5
@@ -42,11 +41,13 @@ class Gu:
 
         self.previous_bbox = bounding_box
 
-    def track_frame(self, next_frame : np.ndarray, previous_bbox : BoundingBox = None) -> tuple[BoundingBox, float]:
+    def track_frame(self, next_frame : np.ndarray, previous_bbox : BoundingBox = None, stateless : bool = False) -> tuple[BoundingBox, float]:
         '''
             Does one iteration of the Gu object tracker.
 
             next_frame  : next frame on which to perform tracking
+            previous_bbox : bounding box (BoundingBox) overriding the state variable
+            stateless : prevent from updating the state of the Gu object
             
             Returns the new bounding box
         '''
@@ -68,14 +69,15 @@ class Gu:
         f_set = points_desc[np.logical_and(foreground, theta), :]
         f_not_set = points_desc[~np.logical_and(foreground, theta), :]
         
-        # update foreground
-        self.kd_trees.append(KDTree(f_set))
+        if not stateless:
+            # update foreground
+            self.kd_trees.append(KDTree(f_set))
 
-        # update background
-        self.background_tree.append(KDTree(f_not_set))
-        # self.background_tree = KDTree(f_not_set)
+            # update background
+            self.background_tree.append(KDTree(f_not_set))
+            # self.background_tree = KDTree(f_not_set)
 
-        self.previous_bbox = w
+            self.previous_bbox = w
 
         return w, score
 
@@ -114,7 +116,7 @@ class Gu:
             points_minus = np.sum(np.where(small_match, 0, -1))
 
             # Compute kappa
-            ## naive assumption that best fitting window minimizes the error
+            ## naive assumption that best fitting window within boundaries actually minimizes the error
 
             x = np.clip(wk_1.x, fuzzy.l.low, fuzzy.l.high)
             y = np.clip(wk_1.y, fuzzy.b.low, fuzzy.b.high)
