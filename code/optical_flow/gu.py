@@ -27,15 +27,15 @@ class Gu:
         # __compute_k params
         self.gamma = 0.1
         self.position_drift = 1
-        self.height = 100
-        self.width = 100
-        self.aspect_ratio = 100
+        self.height = 1e10
+        self.width = 1e10
+        self.aspect_ratio = 1e15
 
         # feature descriptor
         self.descriptor = descriptor
         
         # first frame init
-        points_loc, points_desc = self.descriptor.detect_features(first_frame)
+        points_loc, points_desc, points_size = self.descriptor.detect_features(first_frame)
         theta = self.__compute_theta(bounding_box, points_loc)
 
         self.kd_trees.append(KDTree(points_desc[theta, :]))
@@ -57,7 +57,7 @@ class Gu:
         if previous_bbox is None:
             previous_bbox = self.previous_bbox
 
-        points_loc, points_desc = self.descriptor.detect_features(next_frame)
+        points_loc, points_desc, points_size = self.descriptor.detect_features(next_frame)
         
         foreground = np.full((points_loc.shape[0], ), False)
 
@@ -67,7 +67,7 @@ class Gu:
             iter_res = self.__compute_f(points_desc, tree, self.background_tree)
             foreground = np.logical_or(foreground, iter_res)
 
-        w, score = self.__compute_argmax_w(points_loc, foreground, previous_bbox, next_frame)
+        w, score = self.__compute_argmax_w(points_loc, points_size, foreground, previous_bbox, next_frame)
         theta = self.__compute_theta(w, points_loc)
         f_set = points_desc[np.logical_and(foreground, theta), :]
         f_not_set = points_desc[~np.logical_and(foreground, theta), :]
@@ -78,13 +78,13 @@ class Gu:
 
             # update background
             # self.background_tree.append(KDTree(f_not_set))
-            self.background_tree = KDTree(f_not_set)
+            # self.background_tree = KDTree(f_not_set)
 
             self.previous_bbox = w
 
         return w, score
 
-    def __compute_argmax_w(self, keypoints_loc : np.ndarray, keypoints_in_foreground : np.ndarray, wk_1, i_k) -> tuple[BoundingBox, float]:
+    def __compute_argmax_w(self, keypoints_loc : np.ndarray, keypoints_size : np.ndarray, keypoints_in_foreground : np.ndarray, wk_1, i_k) -> tuple[BoundingBox, float]:
         '''
             Compute the best window using Efficient Subwindow Search
 
@@ -103,6 +103,8 @@ class Gu:
             small = get_smallest_bounding_box(fuzzy)
 
             # Compute the positive points
+            # subset_large_x = np.logical_and(keypoints_loc[:, 0] - keypoints_size >= large.x, keypoints_loc[:, 0] + keypoints_size < large.x + large.w)
+            # subset_large_y = np.logical_and(keypoints_loc[:, 1] - keypoints_size >= large.y, keypoints_loc[:, 1] + keypoints_size < large.y + large.h)
             subset_large_x = np.logical_and(keypoints_loc[:, 0] >= large.x, keypoints_loc[:, 0] < large.x + large.w)
             subset_large_y = np.logical_and(keypoints_loc[:, 1] >= large.y, keypoints_loc[:, 1] < large.y + large.h)
             subset_large = np.logical_and(subset_large_x, subset_large_y)
@@ -136,11 +138,16 @@ class Gu:
             return points_plus + points_minus - kappa
         
         # Compute whole picture bounding box
+        # shape = i_k.shape[0:2][::-1]
+        # s = self.s
+        # bounds = ((wk_1.x - s * wk_1.w, wk_1.y - s * wk_1.h), (wk_1.x + (s + 1) * wk_1.w, wk_1.y + (s + 1) * wk_1.h))
+        # boundaries = np.clip(bounds, a_min = (1, 1), a_max = shape)
+        # search_bbox = BoundingBox(boundaries[0, 0], boundaries[0, 1], boundaries[1, 0] - boundaries[0, 0], boundaries[1, 1] - boundaries[0, 1])
 
-        shape = i_k.shape[0:2]
-        whole_picture_bbox = BoundingBox(0, 0, shape[1], shape[0])
+        shape = i_k.shape[0:2][::-1]
+        search_bbox = BoundingBox(0, 0, shape[1], shape[0])
 
-        return ess_search(whole_picture_bbox, f_hat)
+        return ess_search(search_bbox, f_hat)
 
     def __compute_f(self, a : np.ndarray, b : KDTree, c : KDTree, _lambda : float = None) -> np.ndarray:
         '''
@@ -193,7 +200,7 @@ class Gu:
             Returns the score (float), greater than 0, lower is better.
         '''
 
-        centroid = np.linalg.norm((w_a.x + w_a.w/2 - w_b.x - w_b.w/2, w_a.y + w_a.h/2 - w_b.y - w_b.h/2))
+        centroid = np.linalg.norm((w_a.cx - w_b.cx, w_a.cy - w_b.cy))
         height = np.abs(w_a.h - w_b.h)
         width = np.abs(w_a.w - w_b.w)
         s = np.max((w_a.h/w_a.w - w_b.h/w_b.w, w_a.w/w_a.h - w_b.w/w_b.h))

@@ -4,7 +4,7 @@ import numpy as np
 class FeatureDescriptor:
 
     @abc.abstractmethod
-    def detect_features(self, image : np.ndarray, mask : np.ndarray = None) -> tuple[np.ndarray, np.ndarray]:
+    def detect_features(self, image : np.ndarray, mask : np.ndarray = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         '''
             Computes distinctive features to track through optical flow
 

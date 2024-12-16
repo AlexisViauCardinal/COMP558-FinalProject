@@ -8,7 +8,7 @@ class SIFTDescriptor(FeatureDescriptor):
         super().__init__()
         self.sift_obj = cv.SIFT.create(**params)
 
-    def detect_features(self, image : np.ndarray, mask : np.ndarray = None) -> tuple[np.ndarray, np.ndarray]:
+    def detect_features(self, image : np.ndarray, mask : np.ndarray = None) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         '''
             Computes distinctive SIFT features
 
@@ -19,6 +19,6 @@ class SIFTDescriptor(FeatureDescriptor):
         '''
 
         gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
-        loc, desc = self.sift_obj.detectAndCompute(gray, mask = mask)
+        keypoints, desc = self.sift_obj.detectAndCompute(gray, mask = mask)
 
-        return cv.KeyPoint.convert(loc), np.array(desc)
+        return cv.KeyPoint.convert(keypoints), np.array(desc), np.array([kp.size for kp in keypoints])

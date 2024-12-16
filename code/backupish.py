@@ -83,12 +83,10 @@ class Tracker():
             self.recovery_moment.append(self.frame_number)
             new_bbox, _ = self.__recover_bbox(frame)
 
-            new_bbox = expand_bounding_box(new_bbox, 1.5)
-
             points_new = self.feature_detector.detect_features(frame)
             points_new = subset_points(points_new, new_bbox)
 
-            # self.min_points = self.min_points_ratio * points_new.shape[0]
+            self.min_points = self.min_points_ratio * points_new.shape[0]
 
         else :
             bbox_center, self.bbox_stats = drotrack_bbox_step(frame, self.previous_bbox, points_new, self.bbox_stats)
@@ -112,7 +110,9 @@ class Tracker():
 
         a_max = tuple(np.array(frame.shape[0:2]) - 1)
 
-        search_range = expand_bounding_box(self.previous_bbox, self.recovery_expansion)
+        previous_bbox = scale_bounding_box(self.previous_bbox, 1/self.gu_scale_down)
+
+        search_range = expand_bounding_box(previous_bbox, self.recovery_expansion)
         search_range = bound_bounding_box(search_range, (1, 1), a_max)
 
         search_area = frame[search_range.y:search_range.y + search_range.h, search_range.x:search_range.x + search_range.w]
@@ -138,7 +138,7 @@ class Tracker():
 
         self.gu.track_frame(frame, previous_bbox = best_bbox, stateless = False)
 
-        return best_bbox, best_score
+        return scale_bounding_box(best_bbox, self.gu_scale_down), best_score
 
 '''
 what we do
