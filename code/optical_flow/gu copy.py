@@ -16,20 +16,20 @@ class Gu:
         # general configuration
         self.number_frames = 60
         self.kd_trees = deque(maxlen = self.number_frames)
-        # self.background_tree = deque(maxlen = self.number_frames)
+        self.background_tree = deque(maxlen = self.number_frames)
 
         # argmax range
         self.s = s
 
         # __compute_f params
-        self._lambda = 1
+        self._lambda = 4/5
 
         # __compute_k params
-        self.gamma = 0.1
+        self.gamma = 1
         self.position_drift = 1
-        self.height = 100
-        self.width = 100
-        self.aspect_ratio = 100
+        self.height = 1
+        self.width = 1
+        self.aspect_ratio = 1
 
         # feature descriptor
         self.descriptor = descriptor
@@ -39,8 +39,8 @@ class Gu:
         theta = self.__compute_theta(bounding_box, points_loc)
 
         self.kd_trees.append(KDTree(points_desc[theta, :]))
-        # self.background_tree.append(KDTree(points_desc[~theta, :]))
-        self.background_tree = KDTree(points_desc[~theta, :])
+        self.background_tree.append(KDTree(points_desc[~theta, :]))
+        # self.background_tree = KDTree(points_desc[~theta, :])
 
         self.previous_bbox = bounding_box
 
@@ -61,10 +61,10 @@ class Gu:
         
         foreground = np.full((points_loc.shape[0], ), False)
 
-        # for i in range(np.min((self.number_frames, len(self.kd_trees), len(self.background_tree)))):
-        for tree in self.kd_trees:
-            # iter_res = self.__compute_f(points_desc, self.kd_trees[i], self.background_tree[i])
-            iter_res = self.__compute_f(points_desc, tree, self.background_tree)
+        for i in range(np.min((self.number_frames, len(self.kd_trees), len(self.background_tree)))):
+        # for tree in self.kd_trees:
+            iter_res = self.__compute_f(points_desc, self.kd_trees[i], self.background_tree[i])
+            # iter_res = self.__compute_f(points_desc, tree, self.background_tree)
             foreground = np.logical_or(foreground, iter_res)
 
         w, score = self.__compute_argmax_w(points_loc, foreground, previous_bbox, next_frame)
@@ -77,8 +77,8 @@ class Gu:
             self.kd_trees.append(KDTree(f_set))
 
             # update background
-            # self.background_tree.append(KDTree(f_not_set))
-            self.background_tree = KDTree(f_not_set)
+            self.background_tree.append(KDTree(f_not_set))
+            # self.background_tree = KDTree(f_not_set)
 
             self.previous_bbox = w
 
@@ -137,10 +137,13 @@ class Gu:
         
         # Compute whole picture bounding box
 
-        shape = i_k.shape[0:2]
-        whole_picture_bbox = BoundingBox(0, 0, shape[1], shape[0])
+        shape = i_k.shape[0:2][::-1]
+        s = self.s
+        bounds = ((wk_1.x - s * wk_1.w, wk_1.y - s * wk_1.h), (wk_1.x + (s + 1) * wk_1.w, wk_1.y + (s + 1) * wk_1.h))
+        boundaries = np.clip(bounds, a_min = (1, 1), a_max = shape)
+        search_bbox = BoundingBox(boundaries[0, 0], boundaries[0, 1], boundaries[1, 0] - boundaries[0, 0], boundaries[1, 1] - boundaries[0, 1])
 
-        return ess_search(whole_picture_bbox, f_hat)
+        return ess_search(search_bbox, f_hat)
 
     def __compute_f(self, a : np.ndarray, b : KDTree, c : KDTree, _lambda : float = None) -> np.ndarray:
         '''

@@ -15,6 +15,7 @@ class ShiTomasiDetector(FeatureDetector):
         # If the image is not in grayscale, convert it
         if len(image.shape) > 2:
             image = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+        
         kp = cv.goodFeaturesToTrack(image, self.maxCorners, self.qualityLevel, self.minDistance)
-        feature_array = np.array([k.pt for k in kp], dtype=np.float32)
-        return feature_array
+
+        return kp

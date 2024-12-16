@@ -27,8 +27,8 @@ def __points_clean_up(points : np.ndarray, std = 3) -> np.ndarray:
     std_x = np.std(points[:, 0, 0])
     std_y = np.std(points[:, 0, 1])
 
-    subset_x = np.logical_and(points[:, 0, 0] < mean_x - 3 * std_x, points[:, 0, 0] > mean_x + 3 * std_x)
-    subset_y = np.logical_and(points[:, 0, 1] < mean_y - 3 * std_y, points[:, 0, 1] > mean_y + 3 * std_y)
+    subset_x = np.logical_and(points[:, 0, 0] > mean_x - 3 * std_x, points[:, 0, 0] < mean_x + 3 * std_x)
+    subset_y = np.logical_and(points[:, 0, 1] > mean_y - 3 * std_y, points[:, 0, 1] < mean_y + 3 * std_y)
 
     return points[np.logical_and(subset_x, subset_y), :, :]
 
@@ -57,3 +57,6 @@ def drotrack_bbox_init(frame : np.ndarray, points : np.ndarray, bbox : BoundingB
     computed_bbox = __points_to_bbox(points)
 
     return DroTrackBBOXStats(bbox.h / frame.shape[0], (bbox.x - computed_bbox.cx, bbox.y - computed_bbox.cy))
+
+def scale_bounding_box(bbox : BoundingBox, scale : float) -> BoundingBox:
+    return BoundingBox(int(bbox.x * scale), int(bbox.y * scale), int(bbox.w * scale), int(bbox.h * scale))

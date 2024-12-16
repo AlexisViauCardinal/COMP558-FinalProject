@@ -2,6 +2,7 @@ import numpy as np
 from optical_flow.bounding_box import BoundingBox
 from optical_flow.bounding_box import drotrack_bbox_init
 from optical_flow.bounding_box import drotrack_bbox_step
+from optical_flow.bounding_box import center_to_bbox
 from feature_detection.feature_detector import FeatureDetector
 from feature_description.feature_descriptor import FeatureDescriptor
 from optical_flow.optical_flow import OpticalFlow
@@ -35,15 +36,16 @@ class Tracker():
         self.points = subset_points(self.points, initial_bbox)
         self.gu = Gu(first_frame, initial_bbox, feature_descriptor)
 
-        self.min_points = 0.5 * self.points.shape[0]
+        self.min_points = 0.1 * self.points.shape[0]
 
         # recovery parameters
-        self.gu_frequence = 5
+        self.gu_frequence = 1
         self.gu_iter = 0
         self.recovery_expansion = 5
 
         self.segmenter = segmenter
-        self.min_area_ratio = 1/150 # should be at least 1/100
+        # self.min_area_ratio = 1/150 # should be at least 1/100
+        self.min_area_ratio = 1
 
         self.frame_number = -1
         self.recovery_moment = []
@@ -59,19 +61,21 @@ class Tracker():
         self.frame_number = self.frame_number + 1
 
         pt_count, err, points_old, points_new = self.optical_flow.track_frame(self.previous_frame, frame, self.points)
+        
 
+        # TODO check for err
         if pt_count < self.min_points:
             self.recovery_moment.append(self.frame_number)
             new_bbox, _ = self.__recover_bbox(frame)
 
             points_new = self.feature_detector.detect_features(frame)
-            points_new = subset_points(points_new)
+            points_new = subset_points(points_new, new_bbox)
 
         else :
+            points_new = points_new.reshape(-1, 1, 2)
             bbox_center, self.bbox_stats = drotrack_bbox_step(frame, self.previous_bbox, points_new, self.bbox_stats)
-            new_bbox = None
-
-
+            new_bbox = center_to_bbox(bbox_center[0], bbox_center[1], self.previous_bbox.w, self.previous_bbox.h)
+            # TODO SCALE WITH CAMSHIFT
 
         # do last to avoid over writting states
         self.gu_iter = self.gu_iter + 1
@@ -87,7 +91,7 @@ class Tracker():
 
     def __recover_bbox(self, frame : np.ndarray) -> BoundingBox:
 
-        a_max = tuple(np.array(frame.shape) - 1)
+        a_max = tuple(np.array(frame.shape[0:2]) - 1)
 
         min_x = self.previous_bbox.cx - self.previous_bbox.w * self.recovery_expansion 
         max_x = self.previous_bbox.cx + self.previous_bbox.w * self.recovery_expansion 
@@ -98,18 +102,13 @@ class Tracker():
         search_range = np.clip(((min_x, min_y), (max_x, max_y)), a_min = (0, 0), a_max = a_max)
         search_area = frame[search_range[0, 1]:search_range[1, 1], search_range[0, 0]:search_range[1, 0]]
         
-        w_h = search_area[1, :] - search_area[1, :]
+        w_h = search_range[1, :] - search_range[0, :]
         area = w_h[0] * w_h[1]
 
         segmented = self.segmenter.segment_image(search_area)
         post_processed = cleanup(segmented)
 
         regions = image_bbox(post_processed, min_area=int(self.min_area_ratio * area))
-
-        if len(regions) <= 0:
-            self.segmentation_failed.append(self.frame_number)
-            bbox, _ = self.gu.track_frame(frame, stateless = False)
-            return bbox
 
         best_bbox, best_score = None, np.inf
         for region in regions:
@@ -122,6 +121,13 @@ class Tracker():
             if best_score > error:
                 best_score = error
                 best_bbox = bbox
+
+        self.segmentation_failed.append(self.frame_number)
+        bbox, error = self.gu.track_frame(frame, stateless = True)
+        
+        if best_score > error:
+            best_score = error
+            best_bbox = bbox
 
         self.gu.track_frame(frame, previous_bbox = best_bbox, stateless = False)
 
