@@ -39,7 +39,7 @@ class Tracker():
         self.points = feature_detector.detect_features(first_frame)
         self.points = subset_points(self.points, initial_bbox)
 
-        self.min_points_ratio = 0.5 # how many points should still be tracked before using Gy
+        self.min_points_ratio = 0.5 # how many points should still be tracked before using GU
         self.min_points = self.min_points_ratio * self.points.shape[0]
 
         # recovery parameters
@@ -58,6 +58,7 @@ class Tracker():
         self.recovery_moment = []
         self.segmentation_failed = []
 
+        print(self.points)
         # bounding box properties
         self.bbox_stats = drotrack_bbox_init(self.previous_frame, self.points, self.previous_bbox)
 
@@ -107,7 +108,7 @@ class Tracker():
         self.previous_bbox = new_bbox
         self.points = points_new
         self.previous_frame = frame
-        
+
         # maybe update error tracker
         if self.E_tracker is not None:
             self.E_tracker.update(new_bbox)

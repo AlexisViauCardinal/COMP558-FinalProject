@@ -21,6 +21,7 @@ def center_to_bbox(cx : float, cy : float, w : float, h : float) -> BoundingBox:
     return BoundingBox(int(cx - w / 2), int(cy - h/2), int(w), int(h))
 
 def __points_clean_up(points : np.ndarray, std = 3) -> np.ndarray:
+    if points.shape[1] == 1: return points
     mean_x = np.mean(points[:, 0, 0])
     mean_y = np.mean(points[:, 0, 1])
 
@@ -33,16 +34,17 @@ def __points_clean_up(points : np.ndarray, std = 3) -> np.ndarray:
     return points[np.logical_and(subset_x, subset_y), :, :]
 
 def __points_to_bbox(points : np.ndarray) -> BoundingBox:
+    # Multiple points case
     x_min = np.min(points[:, 0, 0])
     x_max = np.max(points[:, 0, 0])
-
     y_min = np.min(points[:, 0, 1])
     y_max = np.max(points[:, 0, 1])
 
     return BoundingBox(x_min, y_min, x_max - x_min, y_max - y_min)
 
 def drotrack_bbox_step(frame : np.ndarray, prev_bbox : BoundingBox, points : np.ndarray, stats : DroTrackBBOXStats) -> tuple[tuple[int, int], DroTrackBBOXStats]:
-    
+    if points.shape[0] == 0: return None, None
+
     points = __points_clean_up(points)
     computed_bbox = __points_to_bbox(points)
 
@@ -53,7 +55,6 @@ def drotrack_bbox_step(frame : np.ndarray, prev_bbox : BoundingBox, points : np.
 
 def drotrack_bbox_init(frame : np.ndarray, points : np.ndarray, bbox : BoundingBox) -> DroTrackBBOXStats:
     points = __points_clean_up(points)
-
     computed_bbox = __points_to_bbox(points)
 
     return DroTrackBBOXStats(bbox.h / frame.shape[0], (bbox.x - computed_bbox.cx, bbox.y - computed_bbox.cy))

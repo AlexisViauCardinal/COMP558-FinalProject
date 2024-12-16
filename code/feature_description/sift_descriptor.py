@@ -17,8 +17,11 @@ class SIFTDescriptor(FeatureDescriptor):
 
             Returns an (N, 2) array (np.ndarray) containing the points location and associated feature descriptors as an (N, M) array
         '''
+        if len(image.shape) == 3:  # Image has 3 channels (BGR)
+            gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
+        else:  # Image is already grayscale
+            gray = image
 
-        gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
         keypoints, desc = self.sift_obj.detectAndCompute(gray, mask = mask)
 
         return cv.KeyPoint.convert(keypoints), np.array(desc), np.array([kp.size for kp in keypoints])
