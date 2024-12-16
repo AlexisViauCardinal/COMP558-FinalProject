@@ -89,6 +89,7 @@ class ErrorTracker:
             print("Iteration: ", self.iteration, ", center error: ", err, ", IoU: ", iou)
         else:
             print("All ground truth bounding boxes have been processed.")
+        return err
     
     def get_ious(self):
         """ Return the list of IoU errors. """

@@ -59,46 +59,54 @@ for title, dataset in data.data.items():
         all_boxes = bbox_helper.get_all_bboxes(gt_csv_path)
         print("Num images in folder: ",len(os.listdir(dataset['url']+class_dir)))
         for i in np.arange(len(os.listdir(dataset['url']+class_dir))):
-            i += 1
-            #file = ("{0:0"+str(dataset['zc'])+"}.jpg").format(i)
-            file = ("img{0:0"+str(dataset['zc'])+"}.jpg").format(i)
-
-            image = cv2.imread(dataset['url']+class_dir+'/'+file, 1)
-            frame = cv2.resize(image, (0,0), fx=1/s, fy=1/s)
-            # D.showImage(frame, 'frame')
-            #if file == (dataset['zc']-1)*'0'+'1.jpg':
-            if file == 'img'+(dataset['zc']-1)*'0'+'1.jpg':
-                init_bbox = [int (fbbox[0]/s), int (fbbox[1]/s), int (fbbox[2]/s), int (fbbox[3]/s)]
-                init_bbox = T.list_to_Bbox_obj(init_bbox)
-                tracker = our_tracker.Tracker(first_frame=frame, initial_bbox=init_bbox, feature_detector=detector, optical_flow=optical_flow, feature_descriptor=descriptor, segmenter=segmenter)
-                
-                gt_box = all_boxes[i-1]
-                
-                if save == 1:
-                    bbox_obj = T.BoundingBox(int (fbbox[0]/s), int (fbbox[1]/s), int (fbbox[2]/s), int (fbbox[3]/s))
-                    error_tracker.update(bbox_obj)
-                continue
             try:
-                bbox = tracker.track(frame)
-                if math.isnan(all_boxes[i-1][0]) or all_boxes[i-1][0] == 'NaN':
-                    gt_box = [-1,-1,0,0]
-                else:
+                i += 1
+                #file = ("{0:0"+str(dataset['zc'])+"}.jpg").format(i)
+                file = ("img{0:0"+str(dataset['zc'])+"}.jpg").format(i)
+
+                image = cv2.imread(dataset['url']+class_dir+'/'+file, 1)
+                frame = cv2.resize(image, (0,0), fx=1/s, fy=1/s)
+                # D.showImage(frame, 'frame')
+                #if file == (dataset['zc']-1)*'0'+'1.jpg':
+                if file == 'img'+(dataset['zc']-1)*'0'+'1.jpg':
+                    init_bbox = [int (fbbox[0]/s), int (fbbox[1]/s), int (fbbox[2]/s), int (fbbox[3]/s)]
+                    init_bbox = T.list_to_Bbox_obj(init_bbox)
+                    tracker = our_tracker.Tracker(first_frame=frame, initial_bbox=init_bbox, feature_detector=detector, optical_flow=optical_flow, feature_descriptor=descriptor, segmenter=segmenter)
+                    
                     gt_box = all_boxes[i-1]
+                    
+                    if save == 1:
+                        bbox_obj = T.BoundingBox(int (fbbox[0]/s), int (fbbox[1]/s), int (fbbox[2]/s), int (fbbox[3]/s))
+                        error_tracker.update(bbox_obj)
+                    continue
+                try:
+                    bbox = tracker.track(frame)
+                    if math.isnan(all_boxes[i-1][0]) or all_boxes[i-1][0] == 'NaN':
+                        gt_box = [-1,-1,0,0]
+                    else:
+                        gt_box = all_boxes[i-1]
 
-                # Visulization
-                if save == 0 or save == 2:
-                    frame = bbox_helper.visualise_bbox(gt_box, T.Bbox_obj_to_list(bbox), file, class_dir, s, dataset['url'])
-                    # Display the frame with bounding boxes
-                    #cv2.imshow(class_dir, frame)
-                    video_writer.write(frame)
-                    #k = cv2.waitKey(5) & 0xFF 
-                    #if k == 27:
-                    #    break
+                    # Visulization
+                    if save == 0 or save == 2:
+                        frame = bbox_helper.visualise_bbox(gt_box, T.Bbox_obj_to_list(bbox), file, class_dir, s, dataset['url'])
+                        # Display the frame with bounding boxes
+                        #cv2.imshow(class_dir, frame)
+                        video_writer.write(frame)
+                        #k = cv2.waitKey(5) & 0xFF 
+                        #if k == 27:
+                        #    break
+                    
+                    center_err = error_tracker.update(bbox)
+                    if center_err > 100: 
+                        print("Lost tracking, breaking from loop.")
+                        break
 
-                if save == 1  or save == 2:
-                    error_tracker.update(bbox)
-            except: 
-                print("Lost tracking.")
+                except:
+                    print("Couldn't find feature points, breaking from loop.")
+                    break
+            except ValueError: 
+                print("Error: couldn't find feature points.")
+                continue
 
         print("Releasing Writer, writing to dict.")
         video_writer.release()
