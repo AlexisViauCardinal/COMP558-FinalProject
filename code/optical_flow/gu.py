@@ -27,9 +27,9 @@ class Gu:
         # __compute_k params
         self.gamma = 0.1
         self.position_drift = 1
-        self.height = 1e10
-        self.width = 1e10
-        self.aspect_ratio = 1e15
+        self.height = 1000
+        self.width = 1000
+        self.aspect_ratio = 10000
 
         # feature descriptor
         self.descriptor = descriptor
@@ -78,7 +78,7 @@ class Gu:
 
             # update background
             # self.background_tree.append(KDTree(f_not_set))
-            # self.background_tree = KDTree(f_not_set)
+            self.background_tree = KDTree(f_not_set)
 
             self.previous_bbox = w
 
@@ -144,7 +144,7 @@ class Gu:
         # boundaries = np.clip(bounds, a_min = (1, 1), a_max = shape)
         # search_bbox = BoundingBox(boundaries[0, 0], boundaries[0, 1], boundaries[1, 0] - boundaries[0, 0], boundaries[1, 1] - boundaries[0, 1])
 
-        shape = i_k.shape[0:2][::-1]
+        shape = i_k.shape[0:2]
         search_bbox = BoundingBox(0, 0, shape[1], shape[0])
 
         return ess_search(search_bbox, f_hat)
