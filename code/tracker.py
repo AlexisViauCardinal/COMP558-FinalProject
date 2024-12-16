@@ -14,7 +14,8 @@ from segmentation.image_segmenter import ImageSegmenter
 from segmentation.segmentation_utils import cleanup
 from segmentation.segmentation_utils import image_bbox
 import cv2 as cv
-
+from utils.test_utils import ErrorTracker
+import utils.test_utils as T
 
 def subset_points(points : np.ndarray, bbox : BoundingBox):
     subset_x = np.logical_and(points[:, 0, 0] >= bbox.x, points[:, 0, 0] <= bbox.x + bbox.w)
@@ -25,7 +26,7 @@ def subset_points(points : np.ndarray, bbox : BoundingBox):
 
 class Tracker():
 
-    def __init__(self, first_frame : np.ndarray, initial_bbox : BoundingBox, feature_detector : FeatureDetector, optical_flow : OpticalFlow, feature_descriptor : FeatureDescriptor, segmenter : ImageSegmenter, gu_params = {}):
+    def __init__(self, first_frame : np.ndarray, initial_bbox : BoundingBox, feature_detector : FeatureDetector, optical_flow : OpticalFlow, feature_descriptor : FeatureDescriptor, segmenter : ImageSegmenter, gu_params = {}, gt_csv = None ):
 
         # saving parameters
         self.previous_frame = first_frame
@@ -60,6 +61,10 @@ class Tracker():
         # bounding box properties
         self.bbox_stats = drotrack_bbox_init(self.previous_frame, self.points, self.previous_bbox)
 
+        # initialize error tracker
+        self.E_tracker = None
+        if gt_csv is not None: 
+            self.E_tracker = ErrorTracker(gt_csv)
 
 
     def track(self, frame : np.ndarray) -> BoundingBox:
@@ -102,6 +107,10 @@ class Tracker():
         self.previous_bbox = new_bbox
         self.points = points_new
         self.previous_frame = frame
+        
+        # maybe update error tracker
+        if self.E_tracker is not None:
+            self.E_tracker.update(new_bbox)
 
         return new_bbox
 
@@ -139,6 +148,9 @@ class Tracker():
         self.gu.track_frame(frame, previous_bbox = best_bbox, stateless = False)
 
         return best_bbox, best_score
+    
+    def get_error_tracker(self):
+        return self.E_tracker
 
 '''
 what we do
