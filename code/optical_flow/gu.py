@@ -27,9 +27,9 @@ class Gu:
         # __compute_k params
         self.gamma = 0.1
         self.position_drift = 1
-        self.height = 1000
-        self.width = 1000
-        self.aspect_ratio = 10000
+        self.height = 1
+        self.width = 1
+        self.aspect_ratio = 1
 
         # feature descriptor
         self.descriptor = descriptor
@@ -203,6 +203,6 @@ class Gu:
         centroid = np.linalg.norm((w_a.cx - w_b.cx, w_a.cy - w_b.cy))
         height = np.abs(w_a.h - w_b.h)
         width = np.abs(w_a.w - w_b.w)
-        s = np.max((w_a.h/w_a.w - w_b.h/w_b.w, w_a.w/w_a.h - w_b.w/w_b.h))
+        s = np.max((np.abs(w_a.h/w_a.w - w_b.h/w_b.w), np.abs(w_a.w/w_a.h - w_b.w/w_b.h)))
 
         return self.gamma * (self.position_drift * centroid + self.height * height + self.width * width + self.aspect_ratio * s)
