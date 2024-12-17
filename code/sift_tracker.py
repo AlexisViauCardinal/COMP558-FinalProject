@@ -2,7 +2,7 @@ import cv2 as cv
 import numpy as np
 import os
 import time
-from utils import bbox_helper
+from utils import test_utils as T
 
 
 class SIFTTracker:
@@ -62,48 +62,63 @@ class SIFTTracker:
             roi = frame[int(y_new):int(y_new + h), int(x_new):int(x_new + w)]
             self.kp1, self.des1 = self.sift.detectAndCompute(roi, None)
         extime = time.time() - start
-        bbox = [int(x_new), int(y_new), int(x_new + w), int(y_new + h)]
-        center = bbox_helper.get_bbox_center(bbox)
-        return bbox, center, extime
+        # bbox = [int(x_new), int(y_new), int(x_new + w), int(y_new + h)]
+        # bbox = T.list_to_Bbox_obj([int(x_new), int(y_new), int(x_new + w), int(y_new + h)])
+        # bbox = [int(x_new), int(y_new), h, w]
+        bbox = T.list_to_Bbox_obj([int(x_new), int(y_new), h, w])
+        # center = bbox_helper.get_bbox_center(bbox)
+        # return bbox, center, extime
+        return bbox
 
         
 
-
+# CODE FOR REPORT IMAGE
 
 # if __name__ == "__main__":
-#     # Define paths for sequence and annotations
-#     sequence_path = "sequences/uav0000085_00000_s/"
-#     annotation = "annotations/uav0000085_00000_s.txt"
+#     # Load frame 1 and frame 5
+#     frame1 = cv.imread("sequences/uav0000085_00000_s/img0000001.jpg")
+#     frame2 = cv.imread("sequences/uav0000085_00000_s/img0000005.jpg")
 
-#     # Read the first image in the sequence
-#     images = []
-#     for filename in sorted(os.listdir(sequence_path)):
-#         img = cv.imread(os.path.join(sequence_path, filename))
-#         images.append(img)
-
-#     frame = images[0]
-
-#     # Read annotations
-#     with open(annotation, "r") as f:
+#     # Get the first annotation
+#     with open("annotations/uav0000085_00000_s.txt", "r") as f:
 #         annotations = f.readlines()
-
 #     x, y, w, h = map(int, annotations[0].split(","))
-#     # Draw the rectangle on the first frame
-#     frame_copy = frame.copy()
-#     cv.rectangle(frame_copy, (x, y), (x+w, y+h), 255, 2)
-#     cv.imshow("Frame", frame_copy)
-#     cv.waitKey(0)
 
-#     sift_tracker = SIFTTracker(frame, x, y, w, h)
-#     for frame in images:
-#         track_window = sift_tracker.track(frame)
-#         x, y, w, h = track_window
-#         x = int(x)
-#         y = int(y)
-#         frame_copy = frame.copy()
-#         print(x, y, w, h)
-#         cv.rectangle(frame_copy, (x, y), (x+w, y+h), 255, 2)
-#         frame_copy = cv.resize(frame_copy, (0, 0), fx=0.5, fy=0.5)
-#         cv.imshow("Frame", frame_copy)
-#         cv.waitKey(1)
-#     cv.destroyAllWindows()
+#     # Create a copy of the first frame and draw the bounding box
+#     frame1_with_box = frame1.copy()
+#     cv.rectangle(frame1_with_box, (x, y), (x+w, y+h), (0, 255, 0), 2)  # Green rectangle
+
+#     # Detect keypoints in bounding box
+#     sift = cv.SIFT_create()
+#     roi = frame1[y:y+h, x:x+w]
+#     kp1, des1 = sift.detectAndCompute(roi, None)
+
+#     # Detect keypoints and descriptors in the second frame
+#     kp2, des2 = sift.detectAndCompute(frame2, None)
+
+#     # Match descriptors
+#     bf = cv.BFMatcher(cv.NORM_L2, crossCheck=True)
+#     matches = bf.match(des1, des2)
+
+#     # Sort matches
+#     matches = sorted(matches, key=lambda match: match.distance)
+#     num_matches = min(10, len(matches))  # Take top 10
+
+#     # Shift keypoints to frame1 coordinates
+#     for kp in kp1:
+#         kp.pt = (kp.pt[0] + x, kp.pt[1] + y)
+
+#     # Draw matches 
+#     matches_image = cv.drawMatches(
+#         frame1_with_box, kp1,  
+#         frame2, kp2,          
+#         matches[:num_matches], 
+#         None,                 
+#         flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
+#     )
+
+#     matches_image = cv.resize(matches_image, (0, 0), fx=0.4, fy=0.4)
+#     # cv.imshow("Bounding Box and Matches", matches_image)
+#     # cv.waitKey(0)
+#     # cv.destroyAllWindows()
+#     cv.imwrite("SIFT_matching.jpg", matches_image)
