@@ -125,5 +125,7 @@ try: # this try block ensures the data is saved, even if there's an exception
                 error_tracker_dict[class_dir] = error_tracker
 finally:
     output_file = f"results/Error_info_{time_stamp()}.csv"
+    timing_file = f"results/Timing_info_{time_stamp()}.csv"
     T.write_tracking_info_to_csv(error_tracker_dict, output_file=output_file, error_threshold=20)
+    T.write_timing_info_to_csv(error_tracker_dict, output_file=timing_file)
     video_writer.release()
