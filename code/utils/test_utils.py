@@ -183,18 +183,17 @@ def create_video_writer(output_path, frame_size, fps):
 
 
 def write_timing_info_to_csv(timing_data, output_file):
-    # Prepare the data for writing
-    video_names = list(timing_data.keys())
-
     # Open the file in write mode
     with open(output_file, mode='w', newline='') as file:
         writer = csv.writer(file)
         
-        # Write the header row with video names, AOS, and tracking length
-        header_row = []
-        for video_name in video_names:
-            tracker = timing_data[video_name]
+        # Write the header row
+        writer.writerow(["Video", "Runtime", "Iterations"])
+        
+        # Write the video names and their corresponding runtimes
+        for video_name, tracker in timing_data.items():
             running_time = tracker.get_running_time()
-            header_row.extend([f"{video_name} (Runtime={running_time})", ""])
-        writer.writerow(header_row)
+            iterations = tracker.iteration
+            writer.writerow([video_name, running_time, iterations])
+    
     print(f"Timing data saved to {output_file}")

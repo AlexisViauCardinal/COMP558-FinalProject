@@ -1,4 +1,3 @@
-from scale_correction import ScaleCorrection
 import numpy as np
 import cv2 as cv
 from utils import test_utils as T
@@ -46,7 +45,7 @@ class CamShift:
         self.w_prev = self.track_window[2]
         self.h_prev = self.track_window[3]
         # ret, self.track_window = cv.CamShift(dst, self.track_window, self.term_crit)
-        ret, self.track_window = cv.meanShift(dst, self.track_window, self.term_crit)
+        ret, self.track_window = cv.CamShift(dst, self.track_window, self.term_crit)
         x, y, w, h = self.track_window
 
         # Update the track window

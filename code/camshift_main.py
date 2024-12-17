@@ -108,4 +108,8 @@ for title, dataset in data.data.items():
         video_writer.release()
         error_tracker_dict[class_dir] = error_tracker
     output_file = "Error_info_camshift.csv"
+    timing_file = "Timing_info_camshift.csv"
     T.write_tracking_info_to_csv(error_tracker_dict, output_file=output_file, error_threshold=20)
+    print("Finished writing to file.")
+    T.write_timing_info_to_csv(error_tracker_dict, timing_file)
+    print("Finished writing timing info to file.")

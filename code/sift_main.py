@@ -65,7 +65,7 @@ for title, dataset in data.data.items():
                     # tracker = our_tracker.Tracker(first_frame=frame, initial_bbox=init_bbox, feature_detector=detector, optical_flow=optical_flow, feature_descriptor=descriptor, segmenter=segmenter)
                     # Find x, y, w, h of the bounding box
                     x, y, w, h = init_bbox.x, init_bbox.y, init_bbox.w, init_bbox.h
-                    tracker = our_tracker(frame, x, y, w, h, first_frame_features_only=True)
+                    tracker = our_tracker(frame, x, y, w, h, first_frame_features_only=False)
 
                     
                     gt_box = all_boxes[i-1]
@@ -106,5 +106,7 @@ for title, dataset in data.data.items():
         print("Releasing Writer, writing to dict.")
         video_writer.release()
         error_tracker_dict[class_dir] = error_tracker
-    output_file = "Error_info_SIFT_first_frame_only.csv"
+    output_file = "Error_info_SIFT_f2f.csv"
+    timing_file = "Timing_info_SIFT_f2f.csv"
     T.write_tracking_info_to_csv(error_tracker_dict, output_file=output_file, error_threshold=20)
+    T.write_timing_info_to_csv(error_tracker_dict, output_file=timing_file)
