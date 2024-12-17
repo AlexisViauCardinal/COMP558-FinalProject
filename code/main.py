@@ -23,7 +23,7 @@ save = 2
 sift_params = {"sigma": 4, "nOctaveLayers":3, "contrastThreshold":0.03, "edgeThreshold":10}
 # sift_params = {}
 
-detector = ShiTomasiDetector()
+detector = ShiTomasiDetector(maxCorners=1000)
 optical_flow = LucasKanade()
 descriptor = SIFTDescriptor(params=sift_params)
 segmenter = FuzzyCMeansSegmenter(5, 0, 10, 2, 2, 10)

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import cv2
 import csv
-
+import time
 @dataclass
 class BoundingBox:
     x: int  # x-coordinate of the top-left corner
@@ -32,7 +32,10 @@ class ErrorTracker:
         self.ious = np.zeros(self.num_frames)
         self.center_errors = np.zeros(self.num_frames)
         self.iteration = 0  # Track the current iteration
-    
+
+        self.time_stamps = np.zeros(self.num_frames+1)
+        self.time_stamps[0] = time.time()
+
     def _load_ground_truth(self, csv_file):
         """
         Load ground truth bounding boxes from CSV file. 
@@ -86,7 +89,8 @@ class ErrorTracker:
             self.ious[self.iteration] = iou
             self.center_errors[self.iteration] = err 
             self.iteration += 1
-            print("Iteration: ", self.iteration, ", center error: ", err, ", IoU: ", iou)
+            self.time_stamps[self.iteration] =  time.time()
+            print(self.time_stamps[self.iteration]," -- Iteration: ", self.iteration, ", center error: ", err, ", IoU: ", iou)
         else:
             print("All ground truth bounding boxes have been processed.")
         return err
@@ -109,6 +113,8 @@ class ErrorTracker:
             else:
                 break  
         return successful_frames
+    def get_running_time(self):
+        return self.time_stamps[-1] - self.time_stamps[0]
 
 def write_tracking_info_to_csv(tracking_data, output_file, error_threshold):
     """
