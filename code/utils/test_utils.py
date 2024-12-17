@@ -27,8 +27,8 @@ def Bbox_obj_to_list(bbox_obj):
     return bbox_list
 
 class ErrorTracker:
-    def __init__(self, ground_truth_csv):
-        self.ground_truth, self.num_frames = self._load_ground_truth(ground_truth_csv)
+    def __init__(self, ground_truth_csv, scale=1):
+        self.ground_truth, self.num_frames = self._load_ground_truth(ground_truth_csv, scale)
         self.ious = np.zeros(self.num_frames)
         self.center_errors = np.zeros(self.num_frames)
         self.iteration = 0  # Track the current iteration
@@ -36,7 +36,7 @@ class ErrorTracker:
         self.time_stamps = np.zeros(self.num_frames+1)
         self.time_stamps[0] = time.time()
 
-    def _load_ground_truth(self, csv_file):
+    def _load_ground_truth(self, csv_file, scale):
         """
         Load ground truth bounding boxes from CSV file. 
         - Assumes each row in the csv corresponds to (x_coord, y_coord, width, height)
@@ -49,6 +49,10 @@ class ErrorTracker:
             for row in reader:
                 num_entries += 1
                 x, y, w, h = map(int, row)
+                x = x/scale
+                y = y/scale
+                w = w/scale
+                h = h/scale
                 ground_truth.append(BoundingBox(x, y, h, w))
         return ground_truth, num_entries
     
@@ -80,7 +84,7 @@ class ErrorTracker:
         """ Compute center error between ground truth and predicted box """
         return math.sqrt((gt.x - pred.x)**2 + (gt.y - pred.y)**2)
     
-    def update(self, predicted_bbox: BoundingBox):
+    def update(self, predicted_bbox: BoundingBox, verbose = False):
         """ Update the error list with the IoU score for the current iteration. """
         if self.iteration < len(self.ground_truth):
             gt_bbox = self.ground_truth[self.iteration]
@@ -90,7 +94,8 @@ class ErrorTracker:
             self.center_errors[self.iteration] = err 
             self.iteration += 1
             self.time_stamps[self.iteration] =  time.time()
-            print(self.time_stamps[self.iteration]," -- Iteration: ", self.iteration, ", center error: ", err, ", IoU: ", iou)
+            if verbose:
+                print(self.time_stamps[self.iteration]," -- Iteration: ", self.iteration, ", center error: ", err, ", IoU: ", iou)
         else:
             print("All ground truth bounding boxes have been processed.")
         return err
@@ -113,8 +118,14 @@ class ErrorTracker:
             else:
                 break  
         return successful_frames
+    
     def get_running_time(self):
         return self.time_stamps[self.iteration] - self.time_stamps[0]
+    
+    def get_recent_fps(self, num_frames=5):
+        seconds = self.time_stamps[self.iteration] - self.time_stamps[max(0, self.iteration-num_frames)]
+        fps = num_frames / seconds
+        return fps
 
 def write_tracking_info_to_csv(tracking_data, output_file, error_threshold):
     """
