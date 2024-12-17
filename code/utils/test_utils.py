@@ -114,7 +114,7 @@ class ErrorTracker:
                 break  
         return successful_frames
     def get_running_time(self):
-        return self.time_stamps[-1] - self.time_stamps[0]
+        return self.time_stamps[self.iteration] - self.time_stamps[0]
 
 def write_tracking_info_to_csv(tracking_data, output_file, error_threshold):
     """
@@ -180,3 +180,21 @@ def create_video_writer(output_path, frame_size, fps):
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # 'mp4v' for .mp4, 'XVID' for .avi
     video_writer = cv2.VideoWriter(output_path, fourcc, fps, frame_size)
     return video_writer
+
+
+def write_timing_info_to_csv(timing_data, output_file):
+    # Prepare the data for writing
+    video_names = list(timing_data.keys())
+
+    # Open the file in write mode
+    with open(output_file, mode='w', newline='') as file:
+        writer = csv.writer(file)
+        
+        # Write the header row with video names, AOS, and tracking length
+        header_row = []
+        for video_name in video_names:
+            tracker = timing_data[video_name]
+            running_time = tracker.get_running_time()
+            header_row.extend([f"{video_name} (Runtime={running_time})", ""])
+        writer.writerow(header_row)
+    print(f"Timing data saved to {output_file}")
