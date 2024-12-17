@@ -2,7 +2,7 @@ import csv
 import math
 
 
-filename = "Timing_info_camshift.csv"
+filename = "Timing_info_SIFT_first_frame_only.csv"
 
 # Open the file in read mode
 with open(filename, mode='r') as file:

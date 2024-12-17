@@ -6,7 +6,7 @@ from utils import test_utils as T
 
 
 class SIFTTracker:
-    def __init__(self, first_frame, x, y, w, h, first_frame_features_only=False):
+    def __init__(self, first_frame, x, y, w, h, first_frame_features_only=True):
         self.track_window = (x, y, w, h)
         self.w = w
         self.h = h
@@ -74,51 +74,53 @@ class SIFTTracker:
 
 # CODE FOR REPORT IMAGE
 
-# if __name__ == "__main__":
-#     # Load frame 1 and frame 5
-#     frame1 = cv.imread("sequences/uav0000085_00000_s/img0000001.jpg")
-#     frame2 = cv.imread("sequences/uav0000085_00000_s/img0000005.jpg")
+if __name__ == "__main__":
+    # Load sequence
+    sequence_path = "datasets/VisDrone2019-SOT-train/sequences/uav0000085_00000_s/"
+    images = []
+    for filename in os.listdir(sequence_path):
+        img = cv.imread(os.path.join(sequence_path, filename))
+        if img is not None:
+            images.append(img)
 
-#     # Get the first annotation
-#     with open("annotations/uav0000085_00000_s.txt", "r") as f:
-#         annotations = f.readlines()
-#     x, y, w, h = map(int, annotations[0].split(","))
+    # Load annotations
+    annotation = "datasets/VisDrone2019-SOT-train/annotations/uav0000085_00000_s.txt"
+    with open(annotation, "r") as f:
+        annotations = f.readlines()
 
-#     # Create a copy of the first frame and draw the bounding box
-#     frame1_with_box = frame1.copy()
-#     cv.rectangle(frame1_with_box, (x, y), (x+w, y+h), (0, 255, 0), 2)  # Green rectangle
+    # Extract the first annotation
+    x, y, w, h = map(int, annotations[0].split(","))
 
-#     # Detect keypoints in bounding box
-#     sift = cv.SIFT_create()
-#     roi = frame1[y:y+h, x:x+w]
-#     kp1, des1 = sift.detectAndCompute(roi, None)
+    # Initialize the SIFT tracker
+    frame = images[0]
+    sift_tracker = SIFTTracker(frame, x, y, w, h)
+    test_frames = [1, 44, 300, 305, 310]
 
-#     # Detect keypoints and descriptors in the second frame
-#     kp2, des2 = sift.detectAndCompute(frame2, None)
+    # Track the object in the sequence
+    for i, frame in enumerate(images):
+        if i+1 in test_frames:
+            frame_copy = frame.copy()
+            cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+            cv.putText(frame, str(i+1), (x, w), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-#     # Match descriptors
-#     bf = cv.BFMatcher(cv.NORM_L2, crossCheck=True)
-#     matches = bf.match(des1, des2)
+            # cv.addText(frame, "Predicted", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            # Draw ground truth bounding box
+            x_gt, y_gt, w_gt, h_gt = map(int, annotations[i].split(","))
+            # cv.rectangle(frame, (x_gt, y_gt), (x_gt + w_gt, y_gt + h_gt), (0, 0, 255), 2)
+            # cv.addText(frame, "Ground Truth", (10, 60), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            # cv.imshow("Frame", frame)
+            cv.rectangle(frame_copy, (x_gt, y_gt), (x_gt + w_gt, y_gt + h_gt), (0, 0, 255), 2)
+            cv.imshow("Frame", frame)
+            cv.waitKey(0)
+            print(f"Frame {i+1}")   
+            # cv.waitKey(0)
+            # cv.imwrite(f"sift_tracker_{i+1}.jpg", frame)
+            # cv.imwrite(f"sift_tracker_{i+1}_gt.jpg", frame_copy)
+            if i+1 == test_frames[-1]:
+                break
+        # cv.destroyAllWindows()
+        bbox = sift_tracker.track(frame)
+        x, y, w, h = bbox.x, bbox.y, bbox.w, bbox.h
+        # Draw the bounding box on the frame
 
-#     # Sort matches
-#     matches = sorted(matches, key=lambda match: match.distance)
-#     num_matches = min(10, len(matches))  # Take top 10
 
-#     # Shift keypoints to frame1 coordinates
-#     for kp in kp1:
-#         kp.pt = (kp.pt[0] + x, kp.pt[1] + y)
-
-#     # Draw matches 
-#     matches_image = cv.drawMatches(
-#         frame1_with_box, kp1,  
-#         frame2, kp2,          
-#         matches[:num_matches], 
-#         None,                 
-#         flags=cv.DrawMatchesFlags_NOT_DRAW_SINGLE_POINTS
-#     )
-
-#     matches_image = cv.resize(matches_image, (0, 0), fx=0.4, fy=0.4)
-#     # cv.imshow("Bounding Box and Matches", matches_image)
-#     # cv.waitKey(0)
-#     # cv.destroyAllWindows()
-#     cv.imwrite("SIFT_matching.jpg", matches_image)
