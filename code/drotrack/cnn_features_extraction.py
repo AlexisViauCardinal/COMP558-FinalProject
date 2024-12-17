@@ -12,6 +12,7 @@ def features(image, model, preprocess_input):
     s = 32 #max (image.shape[0], image.shape[0], 32)
     image = cv2.resize(image, (s,s))
     image = cv2.cvtColor(image,cv2.COLOR_GRAY2RGB)
+    # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 
     #print (image.shape)
     x = np.expand_dims(image, axis=0)

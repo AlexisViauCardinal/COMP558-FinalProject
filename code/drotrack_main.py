@@ -11,7 +11,7 @@ import os
 # import tracker as our_tracker
 
 # from sift_tracker import SIFTTracker as our_tracker
-from drotrack import DroTrack as our_tracker
+from drotrack.DroTrack import DroTrack
 
 ############ Params ############
 s = 1
@@ -56,7 +56,7 @@ for title, dataset in data.data.items():
                 #file = ("{0:0"+str(dataset['zc'])+"}.jpg").format(i)
                 file = ("img{0:0"+str(dataset['zc'])+"}.jpg").format(i)
 
-                image = cv2.imread(dataset['url']+class_dir+'/'+file, 1)
+                image = cv2.imread(dataset['url']+class_dir+'/'+file, 0)
                 frame = cv2.resize(image, (0,0), fx=1/s, fy=1/s)
                 # D.showImage(frame, 'frame')
                 #if file == (dataset['zc']-1)*'0'+'1.jpg':
@@ -66,7 +66,8 @@ for title, dataset in data.data.items():
                     # tracker = our_tracker.Tracker(first_frame=frame, initial_bbox=init_bbox, feature_detector=detector, optical_flow=optical_flow, feature_descriptor=descriptor, segmenter=segmenter)
                     # Find x, y, w, h of the bounding box
                     x, y, w, h = init_bbox.x, init_bbox.y, init_bbox.w, init_bbox.h
-                    tracker = our_tracker(frame, x, y, w, h)
+                    # tracker = our_tracker(frame, x, y, w, h)
+                    tracker = DroTrack(frame, x, y, w, h)
 
                     
                     gt_box = all_boxes[i-1]
