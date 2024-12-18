@@ -4,5 +4,4 @@
 *.pyc
 **/.idea
 /out
-**/video/
 datasets/
