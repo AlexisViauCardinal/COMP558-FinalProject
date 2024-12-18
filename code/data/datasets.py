@@ -16,6 +16,6 @@ data = {'VisDrone2019-SOT':{
                'uav0000170_00000_s'
                ],
             'zc': 7,
-            'url': "../../../datasets/VisDrone2019-SOT-train/sequences/",
+            'url': "/workspaces/python-opencv/resources/THE_SETUP/datasets/VisDrone2019-SOT-train",
             'xdirs': ['VisDrone2019-SOT-train', 'img']
         }}

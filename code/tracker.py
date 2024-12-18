@@ -120,12 +120,17 @@ class Tracker():
         # frame_scale_down_size = tuple((np.array(frame.shape[0:2])/self.gu_scale_down).astype(np.int32))
         # frame_scaled_down = cv.resize(frame, frame_scale_down_size)
 
+
+        best_bbox, best_score = self.gu.track_frame(frame, stateless = True)
+
         a_max = tuple(np.array(frame.shape[0:2]) - 1)
 
         search_range = expand_bounding_box(self.previous_bbox, self.recovery_expansion)
         search_range = bound_bounding_box(search_range, (1, 1), a_max)
 
         search_area = frame[search_range.y:search_range.y + search_range.h, search_range.x:search_range.x + search_range.w]
+        if np.min(search_area.shape) == 0:
+            return best_bbox, best_score
         
         area = search_range.w * search_range.h
 
@@ -134,7 +139,6 @@ class Tracker():
 
         regions = image_bbox(post_processed, min_area=int(self.min_area_ratio * area))
 
-        best_bbox, best_score = self.gu.track_frame(frame, stateless = True)
         for region in regions:
             minr, minc, maxr, maxc = region.bbox
 

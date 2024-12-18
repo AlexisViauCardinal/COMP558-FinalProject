@@ -18,7 +18,6 @@ from feature_description.ORB_descriptor import ORBDescriptor
 
 # from sift_tracker import SIFTTracker as our_tracker
 from tracker import Tracker
-from meanshift_tracker import MeanShift
 
 ############ Params ############
 s = 1
@@ -35,7 +34,7 @@ video_name = "/output.mp4"
 sequences = ["uav0000003_00000_s"]
 
 sift_params = {"sigma": 4, "nOctaveLayers":3, "contrastThreshold":0.03, "edgeThreshold":10}
-detector = ShiTomasiDetector(maxCorners=10000)
+detector = ShiTomasiDetector(maxCorners=1000)
 optical_flow = LucasKanade()
 descriptor = ORBDescriptor()
 segmenter = FuzzyCMeansSegmenter(5, 0, 10, 2, 2, 10)
@@ -57,7 +56,6 @@ for sequence in sequences:
     
     ret, frame = cap.read()
     tracker = Tracker(frame, init_bbox, detector, optical_flow, descriptor, segmenter)
-    # tracker = MeanShift(frame, init_bbox.x, init_bbox.y, init_bbox.w, init_bbox.h)
     
     try:
         while ret:
