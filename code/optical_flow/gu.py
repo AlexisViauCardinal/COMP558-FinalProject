@@ -11,25 +11,36 @@ from feature_description.feature_descriptor import FeatureDescriptor
 
 class Gu:
 
-    def __init__(self, first_frame : np.ndarray, bounding_box : BoundingBox, descriptor : FeatureDescriptor, s : int = 3):
+    def __init__(self, first_frame : np.ndarray, 
+                 bounding_box : BoundingBox, 
+                 descriptor : FeatureDescriptor, 
+                 frame_buffer : int = 10,
+                 scale_factor : float = 1,
+                 _lambda : float = 2/3,
+                 gamma : float = 0.1,
+                 gamma_drift : float = 1.0,
+                 gamma_width : float = 1.0,
+                 gamma_height : float = 1.0,
+                 gamma_aspect_ratio : float = 100.0
+                 ):
 
         # general configuration
-        self.number_frames = 60
+        self.number_frames = frame_buffer
         self.kd_trees = deque(maxlen = self.number_frames)
         # self.background_tree = deque(maxlen = self.number_frames)
 
-        # argmax range
-        self.s = s
+        # Allowing to scale down to improve performances
+        self.scale_factor = scale_factor
 
         # __compute_f params
-        self._lambda = 1
+        self._lambda = _lambda
 
         # __compute_k params
-        self.gamma = 0.1
-        self.position_drift = 1
-        self.height = 1
-        self.width = 1
-        self.aspect_ratio = 1
+        self.gamma = gamma
+        self.gamma_drift = gamma_drift
+        self.gamma_width = gamma_width
+        self.gamma_height = gamma_height
+        self.gamma_aspect_ratio = gamma_aspect_ratio
 
         # feature descriptor
         self.descriptor = descriptor
@@ -103,10 +114,10 @@ class Gu:
             small = get_smallest_bounding_box(fuzzy)
 
             # Compute the positive points
-            # subset_large_x = np.logical_and(keypoints_loc[:, 0] - keypoints_size >= large.x, keypoints_loc[:, 0] + keypoints_size < large.x + large.w)
-            # subset_large_y = np.logical_and(keypoints_loc[:, 1] - keypoints_size >= large.y, keypoints_loc[:, 1] + keypoints_size < large.y + large.h)
-            subset_large_x = np.logical_and(keypoints_loc[:, 0] >= large.x, keypoints_loc[:, 0] < large.x + large.w)
-            subset_large_y = np.logical_and(keypoints_loc[:, 1] >= large.y, keypoints_loc[:, 1] < large.y + large.h)
+            subset_large_x = np.logical_and(keypoints_loc[:, 0] - keypoints_size >= large.x, keypoints_loc[:, 0] + keypoints_size < large.x + large.w)
+            subset_large_y = np.logical_and(keypoints_loc[:, 1] - keypoints_size >= large.y, keypoints_loc[:, 1] + keypoints_size < large.y + large.h)
+            # subset_large_x = np.logical_and(keypoints_loc[:, 0] >= large.x, keypoints_loc[:, 0] < large.x + large.w)
+            # subset_large_y = np.logical_and(keypoints_loc[:, 1] >= large.y, keypoints_loc[:, 1] < large.y + large.h)
             subset_large = np.logical_and(subset_large_x, subset_large_y)
 
             large_match = keypoints_in_foreground[subset_large]
@@ -136,13 +147,6 @@ class Gu:
             kappa = self._compute_kappa(wk_1, wk)
 
             return points_plus + points_minus - kappa
-        
-        # Compute whole picture bounding box
-        # shape = i_k.shape[0:2][::-1]
-        # s = self.s
-        # bounds = ((wk_1.x - s * wk_1.w, wk_1.y - s * wk_1.h), (wk_1.x + (s + 1) * wk_1.w, wk_1.y + (s + 1) * wk_1.h))
-        # boundaries = np.clip(bounds, a_min = (1, 1), a_max = shape)
-        # search_bbox = BoundingBox(boundaries[0, 0], boundaries[0, 1], boundaries[1, 0] - boundaries[0, 0], boundaries[1, 1] - boundaries[0, 1])
 
         shape = i_k.shape[0:2]
         search_bbox = BoundingBox(0, 0, shape[1], shape[0])
@@ -205,4 +209,4 @@ class Gu:
         width = np.abs(w_a.w - w_b.w)
         s = np.max((np.abs(w_a.h/w_a.w - w_b.h/w_b.w), np.abs(w_a.w/w_a.h - w_b.w/w_b.h)))
 
-        return self.gamma * (self.position_drift * centroid + self.height * height + self.width * width + self.aspect_ratio * s)
+        return self.gamma * (self.gamma_drift * centroid + self.gamma_width * height + self.gamma_height * width + self.gamma_aspect_ratio * s)

@@ -1,0 +1,11 @@
+numpy
+pandas
+sympy
+opencv-python
+matplotlib
+jupyterlab
+notebook
+ipywidgets
+scipy
+scikit-fuzzy
+scikit-image

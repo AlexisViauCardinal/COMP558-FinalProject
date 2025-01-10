@@ -13,17 +13,21 @@ class LucasKanade(OpticalFlow):
 
         return (number of points, error, old points, new points)
         '''
-        
-        previous_gray = cv.cvtColor(previous_frame, cv.COLOR_BGR2GRAY)
-        next_gray = cv.cvtColor(next_frame, cv.COLOR_BGR2GRAY)
+        previous_points = previous_points.reshape(-1, 1, 2)
 
-        p1, st, err = cv.calcOpticalFlowPyrLK(previous_gray, next_gray, previous_points, next_points, **self.lk_params)
+        if len(previous_frame) > 1:
+            previous_frame = cv.cvtColor(previous_frame, cv.COLOR_BGR2GRAY)
+
+        if len(next_frame.shape) > 1:
+            next_frame = cv.cvtColor(next_frame, cv.COLOR_BGR2GRAY)
+
+        p1, st, err = cv.calcOpticalFlowPyrLK(previous_frame, next_frame, previous_points, next_points, **self.lk_params)
 
         if p1 is None:
-            return 0, np.inf, None, None
+            return 0, np.inf, np.zeros((0, 2)), np.zeros((0, 2))
         
-        good_new = p1[st==1]
-        good_old = previous_points[st==1]
+        good_new = p1[st == 1]
+        good_old = previous_points[st == 1]
 
         return np.sum(st), err, good_old, good_new
 
