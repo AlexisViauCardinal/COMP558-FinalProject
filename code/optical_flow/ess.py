@@ -99,13 +99,7 @@ def fuzzy_to_bounding_box(fuzzy : FuzzyBoundingBox) -> BoundingBox:
     if not is_fuzzy_box_single(fuzzy) : 
         raise ValueError("Bounding box should not be fuzzy when converting")
     
-    v_low = fuzzy.b.low
-    v_high = fuzzy.t.high
-
-    h_low = fuzzy.l.low
-    h_high = fuzzy.r.high
-    
-    return get_largest_bounding_box(fuzzy) #BoundingBox(h_low, v_low, h_high - h_low, v_high - v_low)
+    return get_largest_bounding_box(fuzzy)
 
 def get_smallest_bounding_box(fuzzy : FuzzyBoundingBox) -> BoundingBox:
 

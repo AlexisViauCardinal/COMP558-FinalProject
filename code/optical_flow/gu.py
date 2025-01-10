@@ -1,7 +1,9 @@
 import numpy as np
+import cv2 as cv
 from scipy.spatial import KDTree
 from collections import deque
 from optical_flow.bounding_box import BoundingBox
+from optical_flow.bounding_box import scale_bounding_box
 from optical_flow.ess import FuzzyBoundingBox
 from optical_flow.ess import get_largest_bounding_box
 from optical_flow.ess import get_smallest_bounding_box
@@ -21,13 +23,12 @@ class Gu:
                  gamma_drift : float = 1.0,
                  gamma_width : float = 1.0,
                  gamma_height : float = 1.0,
-                 gamma_aspect_ratio : float = 100.0
-                 ):
+                 gamma_aspect_ratio : float = 1.0 ):
 
         # general configuration
         self.number_frames = frame_buffer
         self.kd_trees = deque(maxlen = self.number_frames)
-        # self.background_tree = deque(maxlen = self.number_frames)
+        self.background_tree = deque(maxlen = self.number_frames)
 
         # Allowing to scale down to improve performances
         self.scale_factor = scale_factor
@@ -46,18 +47,22 @@ class Gu:
         self.descriptor = descriptor
         
         # first frame init
-        points_loc, points_desc, points_size = self.descriptor.detect_features(first_frame)
-        theta = self.__compute_theta(bounding_box, points_loc)
+        self.target_image_size = np.int_(np.array(first_frame.shape[0:-1][::-1]) / self.scale_factor)
+        scaled_first_frame = cv.resize(first_frame, self.target_image_size)
+        points_loc, points_desc, points_size = self.descriptor.detect_features(scaled_first_frame)
+
+        scaled_bounding_box = scale_bounding_box(bounding_box, self.scale_factor)
+        theta = self.__compute_theta(scaled_bounding_box, points_loc)
 
         self.kd_trees.append(KDTree(points_desc[theta, :]))
-        # self.background_tree.append(KDTree(points_desc[~theta, :]))
-        self.background_tree = KDTree(points_desc[~theta, :])
+        self.background_tree.append(KDTree(points_desc[~theta, :]))
+        # self.background_tree = KDTree(points_desc[~theta, :])
 
-        self.previous_bbox = bounding_box
+        self.previous_bbox = scaled_bounding_box
 
     def track_frame(self, next_frame : np.ndarray, previous_bbox : BoundingBox = None, stateless : bool = False) -> tuple[BoundingBox, float]:
         '''
-            Does one iteration of the Gu object tracker.
+            Computes one iteration of the Gu object tracker.
 
             next_frame  : next frame on which to perform tracking
             previous_bbox : bounding box (BoundingBox) overriding the state variable
@@ -68,17 +73,19 @@ class Gu:
         if previous_bbox is None:
             previous_bbox = self.previous_bbox
 
-        points_loc, points_desc, points_size = self.descriptor.detect_features(next_frame)
+        scaled_next_frame = cv.resize(next_frame, self.target_image_size)
+
+        points_loc, points_desc, points_size = self.descriptor.detect_features(scaled_next_frame)
         
         foreground = np.full((points_loc.shape[0], ), False)
 
-        # for i in range(np.min((self.number_frames, len(self.kd_trees), len(self.background_tree)))):
-        for tree in self.kd_trees:
-            # iter_res = self.__compute_f(points_desc, self.kd_trees[i], self.background_tree[i])
-            iter_res = self.__compute_f(points_desc, tree, self.background_tree)
+        for i in range(np.min((self.number_frames, len(self.kd_trees), len(self.background_tree)))):
+        # for tree in self.kd_trees:
+            iter_res = self.__compute_f(points_desc, self.kd_trees[i], self.background_tree[i])
+            # iter_res = self.__compute_f(points_desc, tree, self.background_tree)
             foreground = np.logical_or(foreground, iter_res)
 
-        w, score = self.__compute_argmax_w(points_loc, points_size, foreground, previous_bbox, next_frame)
+        w, score = self.__compute_argmax_w(points_loc, points_size, foreground, previous_bbox, scaled_next_frame)
         theta = self.__compute_theta(w, points_loc)
         f_set = points_desc[np.logical_and(foreground, theta), :]
         f_not_set = points_desc[~np.logical_and(foreground, theta), :]
@@ -88,14 +95,18 @@ class Gu:
             self.kd_trees.append(KDTree(f_set))
 
             # update background
-            # self.background_tree.append(KDTree(f_not_set))
-            self.background_tree = KDTree(f_not_set)
+            self.background_tree.append(KDTree(f_not_set))
+            # self.background_tree = KDTree(f_not_set)
 
             self.previous_bbox = w
 
-        return w, score
+        return scale_bounding_box(w, 1 / self.scale_factor), score
 
-    def __compute_argmax_w(self, keypoints_loc : np.ndarray, keypoints_size : np.ndarray, keypoints_in_foreground : np.ndarray, wk_1, i_k) -> tuple[BoundingBox, float]:
+    def __compute_argmax_w(self, keypoints_loc : np.ndarray, 
+                           keypoints_size : np.ndarray, 
+                           keypoints_in_foreground : np.ndarray, 
+                           wk_1 : BoundingBox, 
+                           i_k : np.ndarray) -> tuple[BoundingBox, float]:
         '''
             Compute the best window using Efficient Subwindow Search
 
@@ -114,10 +125,10 @@ class Gu:
             small = get_smallest_bounding_box(fuzzy)
 
             # Compute the positive points
-            subset_large_x = np.logical_and(keypoints_loc[:, 0] - keypoints_size >= large.x, keypoints_loc[:, 0] + keypoints_size < large.x + large.w)
-            subset_large_y = np.logical_and(keypoints_loc[:, 1] - keypoints_size >= large.y, keypoints_loc[:, 1] + keypoints_size < large.y + large.h)
-            # subset_large_x = np.logical_and(keypoints_loc[:, 0] >= large.x, keypoints_loc[:, 0] < large.x + large.w)
-            # subset_large_y = np.logical_and(keypoints_loc[:, 1] >= large.y, keypoints_loc[:, 1] < large.y + large.h)
+            # subset_large_x = np.logical_and(keypoints_loc[:, 0] - keypoints_size >= large.x, keypoints_loc[:, 0] + keypoints_size < large.x + large.w)
+            # subset_large_y = np.logical_and(keypoints_loc[:, 1] - keypoints_size >= large.y, keypoints_loc[:, 1] + keypoints_size < large.y + large.h)
+            subset_large_x = np.logical_and(keypoints_loc[:, 0] >= large.x, keypoints_loc[:, 0] < large.x + large.w)
+            subset_large_y = np.logical_and(keypoints_loc[:, 1] >= large.y, keypoints_loc[:, 1] < large.y + large.h)
             subset_large = np.logical_and(subset_large_x, subset_large_y)
 
             large_match = keypoints_in_foreground[subset_large]
@@ -144,7 +155,7 @@ class Gu:
 
             wk = BoundingBox(x, y, w, h)
 
-            kappa = self._compute_kappa(wk_1, wk)
+            kappa = self.__compute_kappa(wk_1, wk)
 
             return points_plus + points_minus - kappa
 
@@ -194,7 +205,7 @@ class Gu:
 
         return np.logical_and(x_fit, y_fit)
 
-    def _compute_kappa(self, w_a : BoundingBox, w_b : BoundingBox) -> float:
+    def __compute_kappa(self, w_a : BoundingBox, w_b : BoundingBox) -> float:
         '''
             Compute the motion penalty associated from moving the bounding box from w_a to w_b
 
