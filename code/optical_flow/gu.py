@@ -26,7 +26,7 @@ class Gu:
         # general configuration
         self.number_frames = frame_buffer
         self.kd_trees = deque(maxlen = self.number_frames)
-        # self.background_tree = deque(maxlen = self.number_frames)
+        self.background_tree = deque(maxlen = self.number_frames)
 
         # __compute_f params
         self._lambda = _lambda
@@ -47,8 +47,8 @@ class Gu:
         theta = self.__compute_theta(bounding_box, points_loc)
 
         self.kd_trees.append(KDTree(points_desc[theta, :]))
-        # self.background_tree.append(KDTree(points_desc[~theta, :]))
-        self.background_tree = KDTree(points_desc[~theta, :])
+        self.background_tree.append(KDTree(points_desc[~theta, :]))
+        # self.background_tree = KDTree(points_desc[~theta, :])
 
         self.previous_bbox = bounding_box
 
@@ -69,10 +69,10 @@ class Gu:
         
         foreground = np.full((points_loc.shape[0], ), False)
 
-        # for i in range(np.min((self.number_frames, len(self.kd_trees), len(self.background_tree)))):
-        for tree in self.kd_trees:
-            # iter_res = self.__compute_f(points_desc, self.kd_trees[i], self.background_tree[i])
-            iter_res = self.__compute_f(points_desc, tree, self.background_tree)
+        for i in range(np.min((self.number_frames, len(self.kd_trees), len(self.background_tree)))):
+        # for tree in self.kd_trees:
+            iter_res = self.__compute_f(points_desc, self.kd_trees[i], self.background_tree[i])
+            # iter_res = self.__compute_f(points_desc, tree, self.background_tree)
             foreground = np.logical_or(foreground, iter_res)
 
         w, score = self.__compute_argmax_w(points_loc, points_size, foreground, previous_bbox, next_frame)
@@ -85,8 +85,8 @@ class Gu:
             self.kd_trees.append(KDTree(f_set))
 
             # update background
-            # self.background_tree.append(KDTree(f_not_set))
-            self.background_tree = KDTree(f_not_set)
+            self.background_tree.append(KDTree(f_not_set))
+            # self.background_tree = KDTree(f_not_set)
 
             self.previous_bbox = w
 
@@ -97,7 +97,7 @@ class Gu:
 
         asdf = points_loc[~foreground]
         for j in range(asdf.shape[0]):
-            next_frame = cv.circle(next_frame, np.int_(asdf[j]), 1, (255, 0, 0), -1)
+            next_frame = cv.circle(next_frame, np.int_(asdf[j]), 1, (0, 0, 255), -1)
 
         return w, score, next_frame
 

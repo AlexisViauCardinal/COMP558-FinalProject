@@ -9,3 +9,4 @@ ipywidgets
 scipy
 scikit-fuzzy
 scikit-image
+tqdm

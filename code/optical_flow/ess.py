@@ -103,19 +103,29 @@ def fuzzy_to_bounding_box(fuzzy : FuzzyBoundingBox) -> BoundingBox:
 
 def get_smallest_bounding_box(fuzzy : FuzzyBoundingBox) -> BoundingBox:
 
-    if interval_overlap(fuzzy.b, fuzzy.t) or interval_overlap(fuzzy.l, fuzzy.r) : 
+    b = fuzzy.b.high
+    t = fuzzy.t.low
+
+    l = fuzzy.l.high
+    r = fuzzy.r.low
+
+    if l > r or b > t: 
         return BoundingBox(0, 0, 0, 0)
     
-    v = sorted([fuzzy.b.low, fuzzy.b.high, fuzzy.t.low, fuzzy.t.high])
-    h = sorted([fuzzy.l.low, fuzzy.l.high, fuzzy.r.low, fuzzy.r.high])
-    
-    return BoundingBox(h[1], v[1], h[2] - h[1], v[2] - v[1]) 
+    return BoundingBox(l, b, r - l, t - b)
 
 def get_largest_bounding_box(fuzzy : FuzzyBoundingBox) -> BoundingBox:
-    v = sorted([fuzzy.b.low, fuzzy.b.high, fuzzy.t.low, fuzzy.t.high])
-    h = sorted([fuzzy.l.low, fuzzy.l.high, fuzzy.r.low, fuzzy.r.high])
 
-    return BoundingBox(h[0], v[0], h[3] - h[0], v[3] - v[0]) 
+    b = fuzzy.b.low
+    t = fuzzy.t.high
+
+    l = fuzzy.l.low
+    r = fuzzy.r.high
+
+    if l > r or b > t: 
+        return BoundingBox(0, 0, 0, 0)
+
+    return BoundingBox(l, b, r - l, t - b)
 
 
 def ess_search(max_box : BoundingBox, evaluation_function : Callable[[FuzzyBoundingBox], float]) -> tuple[BoundingBox, float]:
