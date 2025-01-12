@@ -27,7 +27,6 @@ class Gu:
         # general configuration
         self.number_frames = frame_buffer
         self.kd_trees = deque(maxlen = self.number_frames)
-        # self.background_tree = deque(maxlen = self.number_frames)
 
         # __compute_f params
         self._lambda = _lambda
@@ -49,7 +48,6 @@ class Gu:
         theta = self.__compute_theta(bounding_box, points_loc)
 
         self.kd_trees.append(KDTree(points_desc[theta, :]))
-        # self.background_tree.append(KDTree(points_desc[~theta, :]))
         self.background_tree = KDTree(points_desc[~theta, :])
 
         self.previous_bbox = bounding_box
@@ -71,9 +69,7 @@ class Gu:
         
         foreground = np.full((points_loc.shape[0], ), False)
 
-        # for i in range(np.min((self.number_frames, len(self.kd_trees), len(self.background_tree)))):
         for tree in self.kd_trees:
-            # iter_res = self.__compute_f(points_desc, self.kd_trees[i], self.background_tree[i])
             iter_res = self.__compute_f(points_desc, tree, self.background_tree)
             foreground = np.logical_or(foreground, iter_res)
 
@@ -87,21 +83,11 @@ class Gu:
             self.kd_trees.append(KDTree(f_set))
 
             # update background
-            # self.background_tree.append(KDTree(f_not_set))
             self.background_tree = KDTree(f_not_set)
 
             self.previous_bbox = w
 
-
-        asdf = points_loc[foreground, :]
-        for j in range(asdf.shape[0]):
-            next_frame = cv.circle(next_frame, np.int_(asdf[j]), 3, (0, 255, 0), -1)
-
-        asdf = points_loc[~foreground, :]
-        for j in range(asdf.shape[0]):
-            next_frame = cv.circle(next_frame, np.int_(asdf[j]), 3, (0, 0, 255), -1)
-
-        return w, score, next_frame
+        return w, score
 
     def __compute_argmax_w(self,
                            keypoints_loc : np.ndarray, 
@@ -145,8 +131,11 @@ class Gu:
             # Compute the positive points
             # subset_large_x = np.logical_and(keypoints_loc[:, 0] - keypoints_size >= large.x, keypoints_loc[:, 0] + keypoints_size < large.x + large.w)
             # subset_large_y = np.logical_and(keypoints_loc[:, 1] - keypoints_size >= large.y, keypoints_loc[:, 1] + keypoints_size < large.y + large.h)
+            # subset_large = np.logical_and(subset_large_x, subset_large_y)
+            # points_plus = np.sum(subset_large)
             theta_plus = self.__compute_theta(large, keypoints_loc[keypoints_in_foreground, :])
             points_plus = np.sum(theta_plus)
+
 
             # Compute the negative points
             theta_minus = self.__compute_theta(small, keypoints_loc[~keypoints_in_foreground, :])
@@ -206,6 +195,9 @@ class Gu:
 
             Returns the score (float), greater than 0, lower is better.
         '''
+
+        if w_b.w == 0 or w_b.h == 0:
+            return np.inf
 
         centroid = self.gamma_drift * np.linalg.norm((w_a.cx - w_b.cx, w_a.cy - w_b.cy))
         width = self.gamma_width * np.abs(w_a.w - w_b.w)

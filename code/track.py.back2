@@ -51,10 +51,10 @@ class Tracker():
 
         # Online Classifier Tracker
         ## Trigger parameter
-        self.gu_frequency = 5
+        self.gu_frequency = 1
         self.last_recovery = 0
         self.point_expansion_search = 1.5
-        self.min_points_ratio = 0.9
+        self.min_points_ratio = 0.5
 
         self.min_points = self.min_points_ratio * self.points.shape[0]
 
@@ -75,27 +75,30 @@ class Tracker():
         greater_bbox = expand_bounding_box(self.previous_bbox, self.point_expansion_search)
 
         time_for_udpate = (self.frame_number - self.last_recovery) % self.gu_frequency == 0
-        need_recovery = points_count < self.min_points
+        need_recovery = time_for_udpate or points_count < self.min_points
         need_recovery = need_recovery or subset_points(new_points, greater_bbox).shape[0] < self.min_points
 
-        if time_for_udpate or need_recovery:
+        if need_recovery:
+            self.recovery_moment.append(self.frame_number)
             self.last_recovery = self.frame_number
-            tentative_bbox, c_score, points =  self.__recover_bbox(frame, 
-                                                                   full_recovery = need_recovery, 
-                                                                   previous_bbox = self.previous_bbox if not need_recovery else None)
+
+            # if time_for_udpate:
+                # tentative_bbox, c_error, new_points = self.__recover_bbox(frame, segment = not time_for_udpate, previous_bbox = self.previous_bbox)
+            # else:
+                # tentative_bbox, c_error, new_points = self.__recover_bbox(frame, segment = not time_for_udpate)
             
-            if need_recovery:
-                new_bbox = tentative_bbox
-                new_points = points
+            tentative_bbox, c_error, new_points = self.__recover_bbox(frame, segment = not time_for_udpate)
 
-                self.bbox_stats = drotrack_bbox_init(self.previous_frame, points, self.previous_bbox)
-                self.min_points = self.min_points_ratio * new_points.shape[0]
-
-            else:
+            if time_for_udpate:
                 bbox_center, self.bbox_stats = drotrack_bbox_step(frame, self.previous_bbox, new_points, self.bbox_stats)
                 new_bbox = center_to_bbox(bbox_center[0], bbox_center[1], self.previous_bbox.w, self.previous_bbox.h)
+            else:
+                new_bbox = tentative_bbox
+            
+            self.bbox_stats = drotrack_bbox_init(frame, new_points, new_bbox)
+            self.min_points = self.min_points_ratio * new_points.shape[0]
 
-        else :
+        else:
             bbox_center, self.bbox_stats = drotrack_bbox_step(frame, self.previous_bbox, new_points, self.bbox_stats)
             new_bbox = center_to_bbox(bbox_center[0], bbox_center[1], self.previous_bbox.w, self.previous_bbox.h)
 
@@ -107,17 +110,16 @@ class Tracker():
 
         return new_bbox
     
-    def __recover_bbox(self, frame : np.ndarray, full_recovery : bool = True, previous_bbox = None) -> Tuple[BoundingBox, float, np.ndarray]:
-
-        points = None
+    def __recover_bbox(self, frame : np.ndarray, segment : bool = True, previous_bbox = None) -> Tuple[BoundingBox, float, np.ndarray]:
 
         # Use the Online Classifier Tracker as a baseline
-        best_bbox, best_score = self.gu.track_frame(frame,
-                                                    stateless = not full_recovery,
-                                                    previous_bbox = previous_bbox)
+        if previous_bbox is not None:
+            best_bbox, best_score = self.gu.track_frame(frame, stateless = not segment, previous_bbox = previous_bbox)
+        else: 
+            best_bbox, best_score = self.gu.track_frame(frame, stateless = not segment)
 
         # Alleviate penalty with segmentation (time consuming)
-        if full_recovery:
+        if segment:
             a_max = tuple(np.array(frame.shape[0:2]) - 1)
 
             search_range = expand_bounding_box(self.previous_bbox, self.recovery_expansion)
@@ -147,8 +149,8 @@ class Tracker():
             # Update tracker with best guess
             self.gu.track_frame(frame, previous_bbox = best_bbox, stateless = False)
 
-            # Update optical flow features
-            points = self.feature_detector.detect_features(frame)
-            points = subset_points(points, best_bbox)
+        # Update optical flow features
+        points = self.feature_detector.detect_features(frame)
+        points = subset_points(points, best_bbox)
 
         return best_bbox, best_score, points
