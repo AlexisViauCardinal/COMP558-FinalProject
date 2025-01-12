@@ -21,12 +21,13 @@ class Gu:
                  gamma_drift : float = 1.0,
                  gamma_width : float = 1.0,
                  gamma_height : float = 1.0,
-                 gamma_aspect_ratio : float = 1.0 ):
+                 gamma_aspect_ratio : float = 1.0,
+                 gamma_area : float = 0.0 ):
 
         # general configuration
         self.number_frames = frame_buffer
         self.kd_trees = deque(maxlen = self.number_frames)
-        self.background_tree = deque(maxlen = self.number_frames)
+        # self.background_tree = deque(maxlen = self.number_frames)
 
         # __compute_f params
         self._lambda = _lambda
@@ -37,6 +38,7 @@ class Gu:
         self.gamma_width = gamma_width
         self.gamma_height = gamma_height
         self.gamma_aspect_ratio = gamma_aspect_ratio
+        self.gamma_area = gamma_area
 
         # feature descriptor
         self.descriptor = descriptor
@@ -47,8 +49,8 @@ class Gu:
         theta = self.__compute_theta(bounding_box, points_loc)
 
         self.kd_trees.append(KDTree(points_desc[theta, :]))
-        self.background_tree.append(KDTree(points_desc[~theta, :]))
-        # self.background_tree = KDTree(points_desc[~theta, :])
+        # self.background_tree.append(KDTree(points_desc[~theta, :]))
+        self.background_tree = KDTree(points_desc[~theta, :])
 
         self.previous_bbox = bounding_box
 
@@ -69,10 +71,10 @@ class Gu:
         
         foreground = np.full((points_loc.shape[0], ), False)
 
-        for i in range(np.min((self.number_frames, len(self.kd_trees), len(self.background_tree)))):
-        # for tree in self.kd_trees:
-            iter_res = self.__compute_f(points_desc, self.kd_trees[i], self.background_tree[i])
-            # iter_res = self.__compute_f(points_desc, tree, self.background_tree)
+        # for i in range(np.min((self.number_frames, len(self.kd_trees), len(self.background_tree)))):
+        for tree in self.kd_trees:
+            # iter_res = self.__compute_f(points_desc, self.kd_trees[i], self.background_tree[i])
+            iter_res = self.__compute_f(points_desc, tree, self.background_tree)
             foreground = np.logical_or(foreground, iter_res)
 
         w, score = self.__compute_argmax_w(points_loc, points_size, foreground, previous_bbox, next_frame)
@@ -85,19 +87,19 @@ class Gu:
             self.kd_trees.append(KDTree(f_set))
 
             # update background
-            self.background_tree.append(KDTree(f_not_set))
-            # self.background_tree = KDTree(f_not_set)
+            # self.background_tree.append(KDTree(f_not_set))
+            self.background_tree = KDTree(f_not_set)
 
             self.previous_bbox = w
 
 
-        asdf = points_loc[foreground]
+        asdf = points_loc[foreground, :]
         for j in range(asdf.shape[0]):
-            next_frame = cv.circle(next_frame, np.int_(asdf[j]), 1, (0, 255, 0), -1)
+            next_frame = cv.circle(next_frame, np.int_(asdf[j]), 3, (0, 255, 0), -1)
 
-        asdf = points_loc[~foreground]
+        asdf = points_loc[~foreground, :]
         for j in range(asdf.shape[0]):
-            next_frame = cv.circle(next_frame, np.int_(asdf[j]), 1, (0, 0, 255), -1)
+            next_frame = cv.circle(next_frame, np.int_(asdf[j]), 3, (0, 0, 255), -1)
 
         return w, score, next_frame
 
@@ -122,28 +124,12 @@ class Gu:
 
         def f_hat(fuzzy : FuzzyBoundingBox) -> float:
 
-            # Compute largest and smallest possible box
-            large = get_largest_bounding_box(fuzzy)
-            small = get_smallest_bounding_box(fuzzy)
-
-            # Compute the positive points
-            # subset_large_x = np.logical_and(keypoints_loc[:, 0] - keypoints_size >= large.x, keypoints_loc[:, 0] + keypoints_size < large.x + large.w)
-            # subset_large_y = np.logical_and(keypoints_loc[:, 1] - keypoints_size >= large.y, keypoints_loc[:, 1] + keypoints_size < large.y + large.h)
-
-            theta_plus = self.__compute_theta(large, keypoints_loc[keypoints_in_foreground])
-            points_plus = np.sum(theta_plus)
-
-            # Compute the negative points
-            theta_minus = self.__compute_theta(small, keypoints_loc[~keypoints_in_foreground])
-            points_minus = -np.sum(theta_minus)
-
             # Compute kappa
             ## naive assumption that best fitting window within boundaries actually minimizes the error
-
             x = np.clip(wk_1.x, fuzzy.l.low, fuzzy.l.high)
             y = np.clip(wk_1.y, fuzzy.b.low, fuzzy.b.high)
-            w = np.clip(np.clip(wk_1.x + wk_1.w, fuzzy.r.low, fuzzy.r.high) - x, 0, shape[1] - x)
-            h = np.clip(np.clip(wk_1.y + wk_1.h, fuzzy.t.low, fuzzy.t.high) - y, 0, shape[0] - x)
+            w = np.clip(np.clip(wk_1.x + wk_1.w, fuzzy.r.low, fuzzy.r.high), 0, shape[1]) - x
+            h = np.clip(np.clip(wk_1.y + wk_1.h, fuzzy.t.low, fuzzy.t.high), 0, shape[0]) - y
 
             if w == 0 or h == 0:
                 return -np.inf
@@ -152,7 +138,21 @@ class Gu:
 
             kappa = self.__compute_kappa(wk_1, wk)
 
-            return points_plus + points_minus - kappa
+            # Compute largest and smallest possible box
+            large = get_largest_bounding_box(fuzzy)
+            small = get_smallest_bounding_box(fuzzy)
+
+            # Compute the positive points
+            # subset_large_x = np.logical_and(keypoints_loc[:, 0] - keypoints_size >= large.x, keypoints_loc[:, 0] + keypoints_size < large.x + large.w)
+            # subset_large_y = np.logical_and(keypoints_loc[:, 1] - keypoints_size >= large.y, keypoints_loc[:, 1] + keypoints_size < large.y + large.h)
+            theta_plus = self.__compute_theta(large, keypoints_loc[keypoints_in_foreground, :])
+            points_plus = np.sum(theta_plus)
+
+            # Compute the negative points
+            theta_minus = self.__compute_theta(small, keypoints_loc[~keypoints_in_foreground, :])
+            points_minus = np.sum(theta_minus)
+
+            return points_plus - points_minus - kappa
 
         
         search_bbox = BoundingBox(0, 0, shape[1], shape[0])
@@ -176,13 +176,10 @@ class Gu:
         if b.n == 0 or c.n == 0:
             return np.full((a.shape[0]), False)
         
-        _, match_b = b.query(a)
-        _, match_c = c.query(a)
-
-        diff_b = a - b.data[match_b]
-        diff_c = a - c.data[match_c]
+        diff_b, _ = b.query(a)
+        diff_c, _ = c.query(a)
         
-        return np.linalg.norm(diff_b, axis = 1) < _lambda * np.linalg.norm(diff_c, axis = 1)
+        return diff_b < _lambda * diff_c
     
     def __compute_theta(self, window : BoundingBox, keypoints_location : np.ndarray) -> np.ndarray:
         '''
@@ -210,9 +207,12 @@ class Gu:
             Returns the score (float), greater than 0, lower is better.
         '''
 
-        centroid = np.linalg.norm((w_a.cx - w_b.cx, w_a.cy - w_b.cy))
-        height = np.abs(w_a.h - w_b.h)
-        width = np.abs(w_a.w - w_b.w)
-        s = np.max((np.abs(w_a.h/w_a.w - w_b.h/w_b.w), np.abs(w_a.w/w_a.h - w_b.w/w_b.h)))
+        centroid = self.gamma_drift * np.linalg.norm((w_a.cx - w_b.cx, w_a.cy - w_b.cy))
+        width = self.gamma_width * np.abs(w_a.w - w_b.w)
+        height = self.gamma_height * np.abs(w_a.h - w_b.h)
+        s = self.gamma_aspect_ratio * np.max((np.abs(w_a.h/w_a.w - w_b.h/w_b.w), np.abs(w_a.w/w_a.h - w_b.w/w_b.h)))
 
-        return self.gamma * (self.gamma_drift * centroid + self.gamma_width * height + self.gamma_height * width + self.gamma_aspect_ratio * s)
+        # added parameter
+        area_change = self.gamma_area * np.sqrt(np.abs(w_a.w * w_a.h - w_b.w * w_b.h))
+
+        return self.gamma * (centroid + height + width + s + area_change)

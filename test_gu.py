@@ -21,7 +21,7 @@ from optical_flow.gu import Gu
 video_name = "/workspaces/python-opencv/repo/videos/VIDEO-20250109-160653.mp4"
 depth_name = "/workspaces/python-opencv/repo/videos/DEPTH-20250109-160653.mp4"
 
-output_name = "/workspaces/python-opencv/repo/out/gu3.mp4"
+output_name = "/workspaces/python-opencv/repo/out/gu_area.mp4"
 
 # %%
 x, y, w, h = 255, 280, 160, 95
@@ -41,17 +41,7 @@ cap_video = cv.VideoCapture(video_name)
 ret_video, frame_video = cap_video.read()
 
 # %%
-# fig, ax = plt.subplots()
-
-# ax.imshow(frame_video[:,:,::-1])
-
-# rect = patches.Rectangle((initial_bbox.x, initial_bbox.y), initial_bbox.w, initial_bbox.h, linewidth=1, edgecolor='r', facecolor='none')
-# ax.add_patch(rect)
-
-# plt.show()
-
-# %%
-gu = Gu(frame_video, initial_bbox, feature_descriptor, _lambda = 2/3, frame_buffer=60, gamma=0.1)
+gu = Gu(frame_video, initial_bbox, feature_descriptor, _lambda = 4/5, frame_buffer = 60, gamma = 0.1, gamma_area = 0.01, gamma_drift=0.5)
 
 # %%
 fps = cap_video.get(cv.CAP_PROP_FPS)

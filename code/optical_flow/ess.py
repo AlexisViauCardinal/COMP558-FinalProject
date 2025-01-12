@@ -13,7 +13,7 @@ class Interval:
     def __post_init__(self):
         if self.low > self.high:
             print("Warning Interval")
-            low, high = high, low
+            self.low, self.high = self.high, self.low
 
 @dataclass
 class FuzzyBoundingBox:
