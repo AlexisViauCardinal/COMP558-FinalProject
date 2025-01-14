@@ -1,4 +1,5 @@
 import numpy as np
+import cv2 as cv
 from optical_flow.bounding_box import BoundingBox
 from optical_flow.bounding_box import drotrack_bbox_init
 from optical_flow.bounding_box import drotrack_bbox_step
@@ -40,6 +41,7 @@ class Tracker():
         # Statistics
         self.frame_number = -1
         self.recovery_moment = []
+        self.lk_errors = []
 
         # Optical flow tracker
         ## Initialize optical flow points
@@ -48,20 +50,22 @@ class Tracker():
 
         ## bounding box properties
         self.bbox_stats = drotrack_bbox_init(self.previous_frame, self.points, self.previous_bbox)
+        print(self.bbox_stats)
 
         # Online Classifier Tracker
         ## Trigger parameter
-        self.gu_frequency = 5
+        self.gu_frequency = 2
         self.last_recovery = 0
         self.point_expansion_search = 1.5
         self.min_points_ratio = 0.9
+        self.error_trigger = 3
 
         self.min_points = self.min_points_ratio * self.points.shape[0]
 
 
         ## Search parameters
         self.recovery_expansion = 5
-        self.min_area_ratio = 1/150
+        self.min_area_ratio = 1/100
 
         self.gu = Gu(self.previous_frame, self.previous_bbox, self.feature_descriptor, **gu_params)
 
@@ -72,24 +76,30 @@ class Tracker():
 
         points_count, error, old_points, new_points = self.optical_flow.track_frame(self.previous_frame, frame, self.points)
 
+        self.lk_errors.append(error)
+
         greater_bbox = expand_bounding_box(self.previous_bbox, self.point_expansion_search)
 
         time_for_udpate = (self.frame_number - self.last_recovery) % self.gu_frequency == 0
         need_recovery = points_count < self.min_points
         need_recovery = need_recovery or subset_points(new_points, greater_bbox).shape[0] < self.min_points
+        need_recovery = need_recovery or np.mean(error) > self.error_trigger
+
+        time_for_udpate = False
+        need_recovery = False
 
         if time_for_udpate or need_recovery:
             self.last_recovery = self.frame_number
             tentative_bbox, c_score, points =  self.__recover_bbox(frame, 
                                                                    full_recovery = need_recovery, 
-                                                                   previous_bbox = self.previous_bbox if not need_recovery else None)
-            
+                                                                   previous_bbox = None)
+
             if need_recovery:
                 new_bbox = tentative_bbox
                 new_points = points
 
                 self.bbox_stats = drotrack_bbox_init(self.previous_frame, points, self.previous_bbox)
-                self.min_points = self.min_points_ratio * new_points.shape[0]
+                # self.min_points = self.min_points_ratio * new_points.shape[0]
 
             else:
                 bbox_center, self.bbox_stats = drotrack_bbox_step(frame, self.previous_bbox, new_points, self.bbox_stats)
@@ -98,7 +108,6 @@ class Tracker():
         else :
             bbox_center, self.bbox_stats = drotrack_bbox_step(frame, self.previous_bbox, new_points, self.bbox_stats)
             new_bbox = center_to_bbox(bbox_center[0], bbox_center[1], self.previous_bbox.w, self.previous_bbox.h)
-
 
         # Update internal values
         self.previous_frame = frame.copy()
@@ -147,8 +156,21 @@ class Tracker():
             # Update tracker with best guess
             self.gu.track_frame(frame, previous_bbox = best_bbox, stateless = False)
 
+            expanded_bbox = expand_bounding_box(best_bbox, 1.3)
+
             # Update optical flow features
-            points = self.feature_detector.detect_features(frame)
-            points = subset_points(points, best_bbox)
+            detected_points = self.feature_detector.detect_features(frame)
+            points = subset_points(detected_points, expanded_bbox)
+
+            if len(points) == 0:
+                dist_cx = np.abs(detected_points[:, 0] - best_bbox.cx)
+                dist_cy = np.abs(detected_points[:, 1] - best_bbox.cy)
+
+                dist_x = np.clip(dist_cx - best_bbox.w / 2, 0, np.inf)
+                dist_y = np.clip(dist_cy - best_bbox.h / 2, 0, np.inf)
+
+                
+
+
 
         return best_bbox, best_score, points

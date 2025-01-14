@@ -51,13 +51,14 @@ def drotrack_bbox_step(frame : np.ndarray, prev_bbox : BoundingBox, points : np.
     curr_scale = prev_bbox.h / frame.shape[0]
     scale = curr_scale / stats.scale
     
-    return (computed_bbox.x - scale * stats.delta[0], computed_bbox.y - scale * stats.delta[1]), stats
+    return (computed_bbox.cx + scale * stats.delta[0], computed_bbox.cy + scale * stats.delta[1]), stats
 
 def drotrack_bbox_init(frame : np.ndarray, points : np.ndarray, bbox : BoundingBox) -> DroTrackBBOXStats:
     points = points_clean_up(points)
     computed_bbox = points_to_bbox(points)
 
-    return DroTrackBBOXStats(bbox.h / frame.shape[0], (bbox.x - computed_bbox.cx, bbox.y - computed_bbox.cy))
+
+    return DroTrackBBOXStats(bbox.h / frame.shape[0], (bbox.cx - computed_bbox.cx, bbox.cy - computed_bbox.cy))
 
 def scale_bounding_box(bbox : BoundingBox, scale : float) -> BoundingBox:
     return BoundingBox(int(bbox.x * scale), int(bbox.y * scale), int(bbox.w * scale), int(bbox.h * scale))

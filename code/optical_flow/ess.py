@@ -15,6 +15,9 @@ class Interval:
             print("Warning Interval")
             self.low, self.high = self.high, self.low
 
+        self.span = np.abs(self.high - self.low)
+        self.mid_point = (self.low + self.high) / 2
+
 @dataclass
 class FuzzyBoundingBox:
     # Assume t >= b, r >= l
@@ -23,12 +26,9 @@ class FuzzyBoundingBox:
     l : Interval
     r : Interval
 
-def interval_span(interval : Interval) -> int:
-    return np.abs(interval.high - interval.low)
-
 def split_interval(interval : Interval) -> tuple[Interval, Interval]:
     
-    if interval_span(interval) <= 1:
+    if interval.span <= 1:
         return interval, None
 
     mid = (interval.low + interval.high) / 2
@@ -50,10 +50,10 @@ def guard_fuzzy(fuzzy : FuzzyBoundingBox) -> FuzzyBoundingBox:
 
 def split_fuzzy(fuzzy : FuzzyBoundingBox) -> tuple[FuzzyBoundingBox, FuzzyBoundingBox]:
     
-    t_span = interval_span(fuzzy.t)
-    b_span = interval_span(fuzzy.b)
-    l_span = interval_span(fuzzy.l)
-    r_span = interval_span(fuzzy.r)
+    t_span = fuzzy.t.span
+    b_span = fuzzy.b.span
+    l_span = fuzzy.l.span
+    r_span = fuzzy.r.span
 
     if np.max((t_span, b_span, l_span, r_span)) <= 1:
         return fuzzy, None
@@ -77,7 +77,7 @@ def split_fuzzy(fuzzy : FuzzyBoundingBox) -> tuple[FuzzyBoundingBox, FuzzyBoundi
             raise ValueError("Internal processing error")
 
 def is_interval_single(interval : Interval) -> bool:
-    return interval_span(interval) <= 1
+    return interval.span <= 1
 
 def is_fuzzy_box_single(box : FuzzyBoundingBox) -> bool:
     return is_interval_single(box.t) and is_interval_single(box.b) and is_interval_single(box.l) and is_interval_single(box.r)

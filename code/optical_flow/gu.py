@@ -22,7 +22,8 @@ class Gu:
                  gamma_width : float = 1.0,
                  gamma_height : float = 1.0,
                  gamma_aspect_ratio : float = 1.0,
-                 gamma_area : float = 0.0 ):
+                 gamma_area : float = 0.0, 
+                 gamma_fit : float = 1.0):
 
         # general configuration
         self.number_frames = frame_buffer
@@ -38,6 +39,7 @@ class Gu:
         self.gamma_height = gamma_height
         self.gamma_aspect_ratio = gamma_aspect_ratio
         self.gamma_area = gamma_area
+        self.gamma_fit = gamma_fit
 
         # feature descriptor
         self.descriptor = descriptor
@@ -141,7 +143,10 @@ class Gu:
             theta_minus = self.__compute_theta(small, keypoints_loc[~keypoints_in_foreground, :])
             points_minus = np.sum(theta_minus)
 
-            return points_plus - points_minus - kappa
+            # Extra penalty for too area being too big
+            kappa_2 = self.gamma_fit * self.__make_fit_tighter(keypoints_loc[keypoints_in_foreground, :], fuzzy)
+
+            return points_plus - points_minus - kappa - kappa_2
 
         
         search_bbox = BoundingBox(0, 0, shape[1], shape[0])
@@ -208,3 +213,40 @@ class Gu:
         area_change = self.gamma_area * np.sqrt(np.abs(w_a.w * w_a.h - w_b.w * w_b.h))
 
         return self.gamma * (centroid + height + width + s + area_change)
+    
+
+
+    def __make_fit_tighter(self, points_loc : np.ndarray, fuzzy : FuzzyBoundingBox) -> float:
+        '''
+            (Added feature) Penalty to avoid bounding box over fitting the point distribution.
+            Computes the inner distance between distance points and the bounding box.
+            This is a lower bound (and approximation) on the actual penalty.
+
+            This feature was added to prevent bounding box from increasing or staying too large when the background is poor in features.
+
+            points_loc : an (n, 2) array (numpy.ndarray) containing the points location
+            fuzzy : a range of bounding boxes (FuzzyBoundingBox) representing the range of possible bounding boxes 
+
+            Returns the minimal penalty incurred by any possible bounding box
+        '''
+
+        if len(points_loc) <= 0:
+            return np.inf
+
+        # left
+        diff_l = np.abs(points_loc[:, 0] -  fuzzy.l.mid_point)
+        delta_l = np.clip(np.min(diff_l) - fuzzy.l.span/2, 0, np.inf)
+
+        # right
+        diff_r = np.abs(points_loc[:, 0] -  fuzzy.r.mid_point)
+        delta_r = np.clip(np.min(diff_r) - fuzzy.r.span/2, 0, np.inf)
+
+        # bottom
+        diff_b = np.abs(points_loc[:, 1] -  fuzzy.b.mid_point)
+        delta_b = np.clip(np.min(diff_b) - fuzzy.b.span/2, 0, np.inf)
+
+        # top
+        diff_t = np.abs(points_loc[:, 1] -  fuzzy.t.mid_point)
+        delta_t = np.clip(np.min(diff_t) - fuzzy.t.span/2, 0, np.inf)
+
+        return delta_l + delta_r + delta_b + delta_t
