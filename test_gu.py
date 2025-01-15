@@ -13,6 +13,7 @@ sys.path.append("/home/alexis/Documents/COMP558/COMP558-FinalProject/code/")
 
 # %%
 from optical_flow.bounding_box import BoundingBox
+from optical_flow.bounding_box import expand_bounding_box
 from feature_description.orb_descriptor import ORBDescriptor
 from optical_flow.gu import Gu
 
@@ -20,7 +21,7 @@ from optical_flow.gu import Gu
 video_name = "/home/alexis/Documents/master/vision/repo/libfreenect/wrappers/python/out/VIDEO-20250113-190349.mp4"
 depth_name = "/home/alexis/Documents/master/vision/repo/libfreenect/wrappers/python/out/DEPTH-20250113-190349.mp4"
 
-output_name = "/home/alexis/Documents/COMP558/COMP558-FinalProject/out/gu_py_box_steps.mp4"
+output_name = "/home/alexis/Documents/COMP558/COMP558-FinalProject/out/gu_py_box_steps3_gamma0.8.mp4"
 
 # %%
 x, y, w, h = 275, 200, 110, 85
@@ -29,7 +30,7 @@ orb_params = {"params": {"nfeatures" : 1000, "edgeThreshold" : 15, "patchSize" :
 
 # %%
 initial_bbox = BoundingBox(x, y, w, h)
-# initial_bbox = expand_bounding_box(initial_bbox, 1.25)
+initial_bbox = expand_bounding_box(initial_bbox, 1.25)
 
 feature_descriptor = ORBDescriptor(**orb_params)
 
@@ -39,7 +40,7 @@ cap_video = cv.VideoCapture(video_name)
 ret_video, frame_video = cap_video.read()
 
 # %%
-gu_params = {"_lambda" : 4/5, "frame_buffer" : 60, "gamma" : 0.1, "gamma_fit" : 0.5, "gamma_area" : 0.1, "gamma_drift" : 0.5}
+gu_params = {"_lambda" : 4/5, "frame_buffer" : 60, "gamma" : 0.1, "gamma_fit" : 1, "gamma_area" : 0.1, "gamma_drift" : 0.5}
 gu = Gu(frame_video, initial_bbox, feature_descriptor, **gu_params)
 
 # %%
