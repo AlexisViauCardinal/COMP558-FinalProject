@@ -1,13 +1,14 @@
-import numpy as np
-import cv2 as cv
-from scipy.spatial import KDTree
 from collections import deque
+
+import numpy as np
+from scipy.spatial import KDTree
+
+from feature_description.feature_descriptor import FeatureDescriptor
 from optical_flow.bounding_box import BoundingBox
 from optical_flow.ess import FuzzyBoundingBox
 from optical_flow.ess import get_largest_bounding_box
 from optical_flow.ess import get_smallest_bounding_box
 from optical_flow.ess import ess_search
-from feature_description.feature_descriptor import FeatureDescriptor
 
 
 class Gu:

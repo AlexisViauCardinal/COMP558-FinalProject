@@ -1,6 +1,8 @@
-import numpy as np
-from typing import Tuple
 from dataclasses import dataclass
+from typing import Tuple
+
+import numpy as np
+
 from optical_flow.bounding_box import BoundingBox
 from optical_flow.ess import FuzzyBoundingBox
 from optical_flow.ess import ess_search
@@ -62,7 +64,10 @@ def compute_bbox(points : np.ndarray,
                  search_window : BoundingBox,
                  prev_bbox : BoundingBox = None, 
                  weight_pts : float = 1.0, 
-                 weight_delta : float = 1.0) -> Tuple[BoundingBox, float]:
+                 weight_delta : float = 1.0,
+                 std : float = 5.0) -> Tuple[BoundingBox, float]:
+    
+    points = points_clean_up(points, std = std)
 
     def ess_search_function(bbox : FuzzyBoundingBox) -> float:
         

@@ -1,17 +1,20 @@
+from typing import Dict, Tuple
+
 import numpy as np
+
+from feature_description.feature_descriptor import FeatureDescriptor
+from feature_detection.feature_detector import FeatureDetector
 from optical_flow.bounding_box import BoundingBox
 from optical_flow.bounding_box import expand_bounding_box
 from optical_flow.bounding_box import bound_bounding_box
+from optical_flow.gu import Gu
+from optical_flow.optical_flow import OpticalFlow
 from optical_flow.points_utils import compute_bbox
 from optical_flow.points_utils import subset_points
-from feature_detection.feature_detector import FeatureDetector
-from feature_description.feature_descriptor import FeatureDescriptor
-from optical_flow.optical_flow import OpticalFlow
-from optical_flow.gu import Gu
 from segmentation.image_segmenter import ImageSegmenter
 from segmentation.segmentation_utils import cleanup
 from segmentation.segmentation_utils import image_bbox
-from typing import Dict, Tuple
+
 
 class Tracker():
 
@@ -54,7 +57,7 @@ class Tracker():
         self.last_recovery = 0
         self.point_expansion_search = 1
         self.min_points_ratio = 0.5
-        self.error_trigger = 4
+        self.error_trigger = 6
 
         self.min_points = self.min_points_ratio * self.points.shape[0]
         self.abs_min_points = 3
@@ -99,7 +102,7 @@ class Tracker():
             new_points = points
 
         else:
-            new_bbox, bbox_error = compute_bbox(points, self.full_frame_bbox)
+            new_bbox, bbox_error = compute_bbox(new_points, self.full_frame_bbox)
 
 
         # Update internal values

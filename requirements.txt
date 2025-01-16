@@ -11,3 +11,4 @@ scikit-fuzzy
 scikit-image
 tqdm
 open3d
+seaborn
