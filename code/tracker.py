@@ -88,9 +88,6 @@ class Tracker():
         need_recovery = need_recovery or subset_points(new_points, greater_bbox).shape[0] < self.min_points
         need_recovery = need_recovery or np.mean(error) > self.error_trigger
 
-        time_for_udpate = False
-        need_recovery = False
-
         if time_for_udpate or need_recovery:
             self.last_recovery = self.frame_number
             tentative_bbox, c_score, points =  self.__recover_bbox(frame, 
